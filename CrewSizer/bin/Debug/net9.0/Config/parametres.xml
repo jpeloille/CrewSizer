@@ -1,0 +1,232 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Configuration>
+  <Periode mois="Mars" annee="2026" nbJours="31" />
+  <Effectif cdb="12" opl="10" cc="8" pnc="6" />
+  <LimitesFTL tsvMaxJournalier="13" tsvMoyenRetenu="10" reposMinimum="12" />
+  <LimitesCumulatives h28Max="100" h90Max="280" h12Max="900">
+    <CumulPNT cumul28="0" cumul90="0" cumul12="0" />
+    <CumulPNC cumul28="0" cumul90="0" cumul12="0" />
+  </LimitesCumulatives>
+  <JoursOff reglementaire="8" accordEntreprise="2" />
+  <FonctionsSolPNT>
+    <Fonction nom="RDOV" nbPersonnes="1" joursSolMois="8" />
+    <Fonction nom="RDFE" nbPersonnes="1" joursSolMois="8" />
+    <Fonction nom="OSV" nbPersonnes="1" joursSolMois="6" />
+    <Fonction nom="TRI/TRE" nbPersonnes="2" joursSolMois="4" />
+  </FonctionsSolPNT>
+  <FonctionsSolPNC>
+    <Fonction nom="Chef cabine referent" nbPersonnes="1" joursSolMois="4" />
+  </FonctionsSolPNC>
+  <AbattementsPNT>
+    <Abattement libelle="Congés annuels" joursPersonnel="30" />
+    <Abattement libelle="Maladie / arrêts" joursPersonnel="8" />
+    <Abattement libelle="Formation CRM/LOFT" joursPersonnel="10" />
+    <Abattement libelle="Simulateur OPC/LPC" joursPersonnel="6" />
+    <Abattement libelle="Visites médicales" joursPersonnel="2" />
+    <Abattement libelle="Contrôles en ligne CEL" joursPersonnel="4" />
+    <Abattement libelle="Journées syndicales/DP" joursPersonnel="2" />
+    <Abattement libelle="Autres" joursPersonnel="3" />
+  </AbattementsPNT>
+  <AbattementsPNC>
+    <Abattement libelle="Congés annuels" joursPersonnel="20" />
+    <Abattement libelle="Maladie / arrêts" joursPersonnel="6" />
+    <Abattement libelle="Formation sécurité/sûreté" joursPersonnel="8" />
+    <Abattement libelle="Visites médicales" joursPersonnel="2" />
+    <Abattement libelle="Journées syndicales/DP" joursPersonnel="1" />
+    <Abattement libelle="Autres" joursPersonnel="2" />
+  </AbattementsPNC>
+  <CatalogueVols>
+    <Vol numero="101" depart="NOU" arrivee="LIF" heureDepart="07:00" heureArrivee="07:30" />
+    <Vol numero="102" depart="LIF" arrivee="NOU" heureDepart="08:00" heureArrivee="08:30" />
+    <Vol numero="103" depart="NOU" arrivee="LIF" heureDepart="07:30" heureArrivee="08:00" />
+    <Vol numero="104" depart="LIF" arrivee="NOU" heureDepart="08:45" heureArrivee="09:15" />
+    <Vol numero="201" depart="NOU" arrivee="MEE" heureDepart="10:30" heureArrivee="11:05" />
+    <Vol numero="202" depart="MEE" arrivee="NOU" heureDepart="12:10" heureArrivee="12:45" />
+    <Vol numero="203" depart="NOU" arrivee="MEE" heureDepart="15:00" heureArrivee="15:35" />
+    <Vol numero="204" depart="MEE" arrivee="NOU" heureDepart="16:40" heureArrivee="17:15" />
+    <Vol numero="301" depart="NOU" arrivee="KNQ" heureDepart="15:00" heureArrivee="15:30" />
+    <Vol numero="302" depart="KNQ" arrivee="NOU" heureDepart="16:15" heureArrivee="16:45" />
+    <Vol numero="401" depart="NOU" arrivee="UVE" heureDepart="10:30" heureArrivee="11:10" />
+    <Vol numero="402" depart="UVE" arrivee="NOU" heureDepart="12:35" heureArrivee="13:15" />
+    <Vol numero="501" depart="NOU" arrivee="ILP" heureDepart="15:00" heureArrivee="15:25" />
+    <Vol numero="502" depart="ILP" arrivee="NOU" heureDepart="16:05" heureArrivee="16:30" />
+    <Vol numero="601" depart="NOU" arrivee="TGJ" heureDepart="15:00" heureArrivee="15:25" />
+    <Vol numero="602" depart="TGJ" arrivee="NOU" heureDepart="15:55" heureArrivee="16:20" />
+    <Vol numero="701" depart="NOU" arrivee="BMY" heureDepart="10:30" heureArrivee="11:05" />
+    <Vol numero="702" depart="BMY" arrivee="NOU" heureDepart="12:10" heureArrivee="12:45" />
+  </CatalogueVols>
+  <SemainesTypes>
+    <SemaineType reference="BS_01" saison="BASSE">
+      <Bloc sequence="1" jour="Lundi" periode="AM" debutDP="06:15" finDP="09:00" debutFDP="06:45" finFDP="08:30">
+        <Vol numero="101" depart="NOU" arrivee="LIF" heureDepart="07:00" heureArrivee="07:30" />
+        <Vol numero="102" depart="LIF" arrivee="NOU" heureDepart="08:00" heureArrivee="08:30" />
+      </Bloc>
+      <Bloc sequence="2" jour="Lundi" periode="AM" debutDP="10:00" finDP="13:15" debutFDP="10:30" finFDP="12:45">
+        <Vol numero="201" depart="NOU" arrivee="MEE" heureDepart="10:30" heureArrivee="11:05" />
+        <Vol numero="202" depart="MEE" arrivee="NOU" heureDepart="12:10" heureArrivee="12:45" />
+      </Bloc>
+      <Bloc sequence="3" jour="Lundi" periode="PM" debutDP="14:30" finDP="17:15" debutFDP="15:00" finFDP="16:45">
+        <Vol numero="301" depart="NOU" arrivee="KNQ" heureDepart="15:00" heureArrivee="15:30" />
+        <Vol numero="302" depart="KNQ" arrivee="NOU" heureDepart="16:15" heureArrivee="16:45" />
+      </Bloc>
+      <Bloc sequence="1" jour="Mardi" periode="AM" debutDP="06:15" finDP="09:00" debutFDP="06:45" finFDP="08:30">
+        <Vol numero="101" depart="NOU" arrivee="LIF" heureDepart="07:00" heureArrivee="07:30" />
+        <Vol numero="102" depart="LIF" arrivee="NOU" heureDepart="08:00" heureArrivee="08:30" />
+      </Bloc>
+      <Bloc sequence="2" jour="Mardi" periode="AM" debutDP="10:00" finDP="13:45" debutFDP="10:30" finFDP="13:15">
+        <Vol numero="401" depart="NOU" arrivee="UVE" heureDepart="10:30" heureArrivee="11:10" />
+        <Vol numero="402" depart="UVE" arrivee="NOU" heureDepart="12:35" heureArrivee="13:15" />
+      </Bloc>
+      <Bloc sequence="3" jour="Mardi" periode="PM" debutDP="14:30" finDP="17:00" debutFDP="15:00" finFDP="16:30">
+        <Vol numero="501" depart="NOU" arrivee="ILP" heureDepart="15:00" heureArrivee="15:25" />
+        <Vol numero="502" depart="ILP" arrivee="NOU" heureDepart="16:05" heureArrivee="16:30" />
+      </Bloc>
+      <Bloc sequence="1" jour="Mercredi" periode="AM" debutDP="06:15" finDP="09:00" debutFDP="06:45" finFDP="08:30">
+        <Vol numero="101" depart="NOU" arrivee="LIF" heureDepart="07:00" heureArrivee="07:30" />
+        <Vol numero="102" depart="LIF" arrivee="NOU" heureDepart="08:00" heureArrivee="08:30" />
+      </Bloc>
+      <Bloc sequence="2" jour="Mercredi" periode="AM" debutDP="10:00" finDP="13:15" debutFDP="10:30" finFDP="12:45">
+        <Vol numero="201" depart="NOU" arrivee="MEE" heureDepart="10:30" heureArrivee="11:05" />
+        <Vol numero="202" depart="MEE" arrivee="NOU" heureDepart="12:10" heureArrivee="12:45" />
+      </Bloc>
+      <Bloc sequence="3" jour="Mercredi" periode="PM" debutDP="14:30" finDP="17:00" debutFDP="15:00" finFDP="16:20">
+        <Vol numero="601" depart="NOU" arrivee="TGJ" heureDepart="15:00" heureArrivee="15:25" />
+        <Vol numero="602" depart="TGJ" arrivee="NOU" heureDepart="15:55" heureArrivee="16:20" />
+      </Bloc>
+      <Bloc sequence="1" jour="Jeudi" periode="AM" debutDP="06:15" finDP="09:00" debutFDP="06:45" finFDP="08:30">
+        <Vol numero="101" depart="NOU" arrivee="LIF" heureDepart="07:00" heureArrivee="07:30" />
+        <Vol numero="102" depart="LIF" arrivee="NOU" heureDepart="08:00" heureArrivee="08:30" />
+      </Bloc>
+      <Bloc sequence="2" jour="Jeudi" periode="AM" debutDP="10:00" finDP="12:45" debutFDP="10:30" finFDP="12:15">
+        <Vol numero="301" depart="NOU" arrivee="KNQ" heureDepart="10:30" heureArrivee="11:00" />
+        <Vol numero="302" depart="KNQ" arrivee="NOU" heureDepart="11:45" heureArrivee="12:15" />
+      </Bloc>
+      <Bloc sequence="3" jour="Jeudi" periode="PM" debutDP="14:30" finDP="17:45" debutFDP="15:00" finFDP="17:15">
+        <Vol numero="203" depart="NOU" arrivee="MEE" heureDepart="15:00" heureArrivee="15:35" />
+        <Vol numero="204" depart="MEE" arrivee="NOU" heureDepart="16:40" heureArrivee="17:15" />
+      </Bloc>
+      <Bloc sequence="1" jour="Vendredi" periode="AM" debutDP="06:15" finDP="09:00" debutFDP="06:45" finFDP="08:30">
+        <Vol numero="101" depart="NOU" arrivee="LIF" heureDepart="07:00" heureArrivee="07:30" />
+        <Vol numero="102" depart="LIF" arrivee="NOU" heureDepart="08:00" heureArrivee="08:30" />
+      </Bloc>
+      <Bloc sequence="2" jour="Vendredi" periode="AM" debutDP="10:00" finDP="13:45" debutFDP="10:30" finFDP="13:15">
+        <Vol numero="401" depart="NOU" arrivee="UVE" heureDepart="10:30" heureArrivee="11:10" />
+        <Vol numero="402" depart="UVE" arrivee="NOU" heureDepart="12:35" heureArrivee="13:15" />
+      </Bloc>
+      <Bloc sequence="3" jour="Vendredi" periode="PM" debutDP="14:30" finDP="17:00" debutFDP="15:00" finFDP="16:30">
+        <Vol numero="501" depart="NOU" arrivee="ILP" heureDepart="15:00" heureArrivee="15:25" />
+        <Vol numero="502" depart="ILP" arrivee="NOU" heureDepart="16:05" heureArrivee="16:30" />
+      </Bloc>
+      <Bloc sequence="1" jour="Samedi" periode="AM" debutDP="06:15" finDP="09:00" debutFDP="06:45" finFDP="08:30">
+        <Vol numero="101" depart="NOU" arrivee="LIF" heureDepart="07:00" heureArrivee="07:30" />
+        <Vol numero="102" depart="LIF" arrivee="NOU" heureDepart="08:00" heureArrivee="08:30" />
+      </Bloc>
+      <Bloc sequence="2" jour="Samedi" periode="AM" debutDP="10:00" finDP="13:15" debutFDP="10:30" finFDP="12:45">
+        <Vol numero="701" depart="NOU" arrivee="BMY" heureDepart="10:30" heureArrivee="11:05" />
+        <Vol numero="702" depart="BMY" arrivee="NOU" heureDepart="12:10" heureArrivee="12:45" />
+      </Bloc>
+      <Bloc sequence="1" jour="Dimanche" periode="AM" debutDP="07:00" finDP="09:45" debutFDP="07:30" finFDP="09:15">
+        <Vol numero="103" depart="NOU" arrivee="LIF" heureDepart="07:30" heureArrivee="08:00" />
+        <Vol numero="104" depart="LIF" arrivee="NOU" heureDepart="08:45" heureArrivee="09:15" />
+      </Bloc>
+    </SemaineType>
+  </SemainesTypes>
+  <Calendrier>
+    <Affectation semaine="1" annee="2026" ref="BS_01" />
+    <Affectation semaine="2" annee="2026" ref="BS_01" />
+    <Affectation semaine="3" annee="2026" ref="BS_01" />
+    <Affectation semaine="4" annee="2026" ref="BS_01" />
+    <Affectation semaine="5" annee="2026" ref="BS_01" />
+    <Affectation semaine="6" annee="2026" ref="BS_01" />
+    <Affectation semaine="7" annee="2026" ref="BS_01" />
+    <Affectation semaine="8" annee="2026" ref="BS_01" />
+    <Affectation semaine="9" annee="2026" ref="BS_01" />
+    <Affectation semaine="10" annee="2026" ref="BS_01" />
+    <Affectation semaine="11" annee="2026" ref="BS_01" />
+    <Affectation semaine="12" annee="2026" ref="BS_01" />
+    <Affectation semaine="13" annee="2026" ref="BS_01" />
+    <Affectation semaine="14" annee="2026" ref="BS_01" />
+    <Affectation semaine="15" annee="2026" ref="BS_01" />
+    <Affectation semaine="16" annee="2026" ref="BS_01" />
+    <Affectation semaine="17" annee="2026" ref="BS_01" />
+    <Affectation semaine="18" annee="2026" ref="BS_01" />
+    <Affectation semaine="19" annee="2026" ref="BS_01" />
+    <Affectation semaine="20" annee="2026" ref="BS_01" />
+    <Affectation semaine="21" annee="2026" ref="BS_01" />
+    <Affectation semaine="22" annee="2026" ref="BS_01" />
+    <Affectation semaine="23" annee="2026" ref="BS_01" />
+    <Affectation semaine="24" annee="2026" ref="BS_01" />
+    <Affectation semaine="25" annee="2026" ref="BS_01" />
+    <Affectation semaine="26" annee="2026" ref="BS_01" />
+    <Affectation semaine="27" annee="2026" ref="BS_01" />
+    <Affectation semaine="28" annee="2026" ref="BS_01" />
+    <Affectation semaine="29" annee="2026" ref="BS_01" />
+    <Affectation semaine="30" annee="2026" ref="BS_01" />
+    <Affectation semaine="31" annee="2026" ref="BS_01" />
+    <Affectation semaine="32" annee="2026" ref="BS_01" />
+    <Affectation semaine="33" annee="2026" ref="BS_01" />
+    <Affectation semaine="34" annee="2026" ref="BS_01" />
+    <Affectation semaine="35" annee="2026" ref="BS_01" />
+    <Affectation semaine="36" annee="2026" ref="BS_01" />
+    <Affectation semaine="37" annee="2026" ref="BS_01" />
+    <Affectation semaine="38" annee="2026" ref="BS_01" />
+    <Affectation semaine="39" annee="2026" ref="BS_01" />
+    <Affectation semaine="40" annee="2026" ref="BS_01" />
+    <Affectation semaine="41" annee="2026" ref="BS_01" />
+    <Affectation semaine="42" annee="2026" ref="BS_01" />
+    <Affectation semaine="43" annee="2026" ref="BS_01" />
+    <Affectation semaine="44" annee="2026" ref="BS_01" />
+    <Affectation semaine="45" annee="2026" ref="BS_01" />
+    <Affectation semaine="46" annee="2026" ref="BS_01" />
+    <Affectation semaine="47" annee="2026" ref="BS_01" />
+    <Affectation semaine="48" annee="2026" ref="BS_01" />
+    <Affectation semaine="49" annee="2026" ref="BS_01" />
+    <Affectation semaine="50" annee="2026" ref="BS_01" />
+    <Affectation semaine="51" annee="2026" ref="BS_01" />
+    <Affectation semaine="52" annee="2026" ref="BS_01" />
+    <Affectation semaine="53" annee="2026" ref="BS_01" />
+  </Calendrier>
+  <TableTsvMax>
+    <Bande debut="06:00" fin="13:29">
+      <Max etapes="1" heures="13" />
+      <Max etapes="2" heures="12.75" />
+      <Max etapes="3" heures="12.5" />
+      <Max etapes="4" heures="12.25" />
+      <Max etapes="5" heures="12" />
+      <Max etapes="6" heures="11.75" />
+      <Max etapes="7" heures="11.5" />
+      <Max etapes="8" heures="11.25" />
+    </Bande>
+    <Bande debut="13:30" fin="17:59">
+      <Max etapes="1" heures="12.25" />
+      <Max etapes="2" heures="12" />
+      <Max etapes="3" heures="11.75" />
+      <Max etapes="4" heures="11.5" />
+      <Max etapes="5" heures="11.25" />
+      <Max etapes="6" heures="11" />
+      <Max etapes="7" heures="10.75" />
+      <Max etapes="8" heures="10.5" />
+    </Bande>
+    <Bande debut="18:00" fin="21:59">
+      <Max etapes="1" heures="11" />
+      <Max etapes="2" heures="10.75" />
+      <Max etapes="3" heures="10.5" />
+      <Max etapes="4" heures="10.25" />
+      <Max etapes="5" heures="10" />
+      <Max etapes="6" heures="9.75" />
+      <Max etapes="7" heures="9.5" />
+      <Max etapes="8" heures="9.25" />
+    </Bande>
+    <Bande debut="22:00" fin="05:59">
+      <Max etapes="1" heures="11" />
+      <Max etapes="2" heures="10.75" />
+      <Max etapes="3" heures="10.5" />
+      <Max etapes="4" heures="10.25" />
+      <Max etapes="5" heures="10" />
+      <Max etapes="6" heures="9.75" />
+      <Max etapes="7" heures="9.5" />
+      <Max etapes="8" heures="9.25" />
+    </Bande>
+  </TableTsvMax>
+  <LimitesTempsService max7j="60" max14j="110" max28j="190" />
+</Configuration>

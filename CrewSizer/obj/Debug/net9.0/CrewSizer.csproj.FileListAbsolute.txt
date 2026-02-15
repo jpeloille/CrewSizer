@@ -1,0 +1,15 @@
+/home/jpeloille/RiderProjects/CrewSizer/CrewSizer/bin/Debug/net9.0/CrewSizer
+/home/jpeloille/RiderProjects/CrewSizer/CrewSizer/bin/Debug/net9.0/CrewSizer.deps.json
+/home/jpeloille/RiderProjects/CrewSizer/CrewSizer/bin/Debug/net9.0/CrewSizer.runtimeconfig.json
+/home/jpeloille/RiderProjects/CrewSizer/CrewSizer/bin/Debug/net9.0/CrewSizer.dll
+/home/jpeloille/RiderProjects/CrewSizer/CrewSizer/bin/Debug/net9.0/CrewSizer.pdb
+/home/jpeloille/RiderProjects/CrewSizer/CrewSizer/obj/Debug/net9.0/CrewSizer.GeneratedMSBuildEditorConfig.editorconfig
+/home/jpeloille/RiderProjects/CrewSizer/CrewSizer/obj/Debug/net9.0/CrewSizer.AssemblyInfoInputs.cache
+/home/jpeloille/RiderProjects/CrewSizer/CrewSizer/obj/Debug/net9.0/CrewSizer.AssemblyInfo.cs
+/home/jpeloille/RiderProjects/CrewSizer/CrewSizer/obj/Debug/net9.0/CrewSizer.csproj.CoreCompileInputs.cache
+/home/jpeloille/RiderProjects/CrewSizer/CrewSizer/obj/Debug/net9.0/CrewSizer.dll
+/home/jpeloille/RiderProjects/CrewSizer/CrewSizer/obj/Debug/net9.0/refint/CrewSizer.dll
+/home/jpeloille/RiderProjects/CrewSizer/CrewSizer/obj/Debug/net9.0/CrewSizer.pdb
+/home/jpeloille/RiderProjects/CrewSizer/CrewSizer/obj/Debug/net9.0/CrewSizer.genruntimeconfig.cache
+/home/jpeloille/RiderProjects/CrewSizer/CrewSizer/obj/Debug/net9.0/ref/CrewSizer.dll
+/home/jpeloille/RiderProjects/CrewSizer/CrewSizer/bin/Debug/net9.0/Config/parametres.xml
