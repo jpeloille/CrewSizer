@@ -1,4 +1,5 @@
 using System.Globalization;
+using CrewSizer.Helpers;
 using CrewSizer.Models;
 
 namespace CrewSizer.Tui;
@@ -10,6 +11,7 @@ public class ProgrammeOverlay
     private static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
 
     private readonly Configuration _config;
+    private readonly Action? _onModified;
     private ProgrammeView _view = ProgrammeView.SemainesTypes;
 
     // SemainesTypes view
@@ -122,14 +124,48 @@ public class ProgrammeOverlay
         }
     }
 
-    private ProgrammeOverlay(Configuration config)
+    // Current catalogue bloc (the actual persistent entry in CatalogueBlocs)
+    public BlocVol? CurrentCatalogueBloc
     {
-        _config = config;
+        get
+        {
+            var resolved = CurrentBloc;
+            if (resolved == null) return null;
+            return _config.CatalogueBlocs.FirstOrDefault(b => b.Id == resolved.Id);
+        }
     }
 
-    public static ProgrammeOverlay FromConfig(Configuration config)
+    // Current placement (persistent BlocPlacement for the selected bloc)
+    public BlocPlacement? CurrentPlacement
     {
-        return new ProgrammeOverlay(config);
+        get
+        {
+            var st = CurrentST;
+            if (st == null) return null;
+            var ordered = st.Placements
+                .OrderBy(p => HeureHelper.JourVersIndex(p.Jour))
+                .ThenBy(p => p.Sequence)
+                .ToList();
+            if (_blocIndex < 0 || _blocIndex >= ordered.Count) return null;
+            return ordered[_blocIndex];
+        }
+    }
+
+    private ProgrammeOverlay(Configuration config, Action? onModified)
+    {
+        _config = config;
+        _onModified = onModified;
+    }
+
+    public static ProgrammeOverlay FromConfig(Configuration config, Action? onModified = null)
+    {
+        return new ProgrammeOverlay(config, onModified);
+    }
+
+    private void SetModified()
+    {
+        Modified = true;
+        _onModified?.Invoke();
     }
 
     // ── Key dispatch ──
@@ -198,7 +234,7 @@ public class ProgrammeOverlay
                 var newSt = new SemaineType { Reference = "", Saison = "BASSE" };
                 stList.Add(newSt);
                 _stIndex = stList.Count - 1;
-                Modified = true;
+                SetModified();
                 // Start editing reference
                 _stEditing = true;
                 _stEditBuffer = "";
@@ -208,10 +244,10 @@ public class ProgrammeOverlay
             case ConsoleKey.Delete:
                 if (stList.Count > 0)
                 {
-                    var refToRemove = stList[_stIndex].Reference;
+                    var stToRemove = stList[_stIndex];
                     stList.RemoveAt(_stIndex);
-                    _config.Calendrier.RemoveAll(a => a.SemaineTypeRef == refToRemove);
-                    Modified = true;
+                    _config.Calendrier.RemoveAll(a => a.SemaineTypeId == stToRemove.Id);
+                    SetModified();
                     if (_stIndex >= stList.Count && stList.Count > 0)
                         _stIndex = stList.Count - 1;
                 }
@@ -257,7 +293,7 @@ public class ProgrammeOverlay
                 if (!string.IsNullOrWhiteSpace(_stEditBuffer))
                 {
                     _config.SemainesTypes[_stIndex].Reference = _stEditBuffer.Trim();
-                    Modified = true;
+                    SetModified();
                 }
                 else
                 {
@@ -352,20 +388,36 @@ public class ProgrammeOverlay
                 break;
 
             case ConsoleKey.Insert:
+                // Create a default vol in catalogue
+                var defaultVol = new Vol
+                {
+                    Numero = "101", Depart = "NOU", Arrivee = "LIF",
+                    HeureDepart = "07:00", HeureArrivee = "07:30"
+                };
+                _config.CatalogueVols.Add(defaultVol);
+
+                // Create a new catalogue bloc
                 var newBloc = new BlocVol
                 {
-                    Sequence = 1,
-                    Jour = "Lundi",
-                    Periode = "AM",
-                    DebutDP = "06:00",
-                    FinDP = "09:00",
-                    DebutFDP = "06:30",
-                    FinFDP = "08:30",
-                    Vols = [new Vol { Numero = "101", Depart = "NOU", Arrivee = "LIF", HeureDepart = "07:00", HeureArrivee = "07:30" }]
+                    Periode = "AM", DebutDP = "06:00", FinDP = "09:00",
+                    DebutFDP = "06:30", FinFDP = "08:30",
+                    Code = GenerateUniqueCode("ROT-LIF-AM"),
+                    Etapes = [new EtapeVol { Position = 1, VolId = defaultVol.Id }]
                 };
-                st.Blocs.Add(newBloc);
-                _blocIndex = st.Blocs.Count - 1;
-                Modified = true;
+                _config.CatalogueBlocs.Add(newBloc);
+
+                // Create placement in semaine type
+                st.Placements.Add(new BlocPlacement
+                {
+                    BlocId = newBloc.Id, Jour = "Lundi", Sequence = 1
+                });
+
+                SetModified(); // re-resolves st.Blocs
+
+                // Find the new bloc in the resolved list
+                _blocIndex = st.Blocs.FindIndex(b => b.Id == newBloc.Id);
+                if (_blocIndex < 0) _blocIndex = Math.Max(0, st.Blocs.Count - 1);
+
                 // Go straight to edit
                 _view = ProgrammeView.BlocEdit;
                 _fieldIndex = 0;
@@ -375,8 +427,11 @@ public class ProgrammeOverlay
             case ConsoleKey.Delete:
                 if (st.Blocs.Count > 0)
                 {
-                    st.Blocs.RemoveAt(_blocIndex);
-                    Modified = true;
+                    // Remove the placement (not the catalogue bloc)
+                    var placement = CurrentPlacement;
+                    if (placement != null)
+                        st.Placements.Remove(placement);
+                    SetModified();
                     if (_blocIndex >= st.Blocs.Count && st.Blocs.Count > 0)
                         _blocIndex = st.Blocs.Count - 1;
                 }
@@ -384,6 +439,15 @@ public class ProgrammeOverlay
         }
 
         return true;
+    }
+
+    private string GenerateUniqueCode(string baseCode)
+    {
+        var code = baseCode;
+        int suffix = 2;
+        while (_config.CatalogueBlocs.Any(b => b.Code == code))
+            code = $"{baseCode}-{suffix++}";
+        return code;
     }
 
     // ══════════════════════════════════════════════
@@ -419,18 +483,18 @@ public class ProgrammeOverlay
                 break;
 
             case ConsoleKey.LeftArrow:
-                CycleBlocField(bloc, _fieldIndex, -1);
+                CycleBlocFieldPersistent(_fieldIndex, -1);
                 break;
 
             case ConsoleKey.RightArrow:
-                CycleBlocField(bloc, _fieldIndex, +1);
+                CycleBlocFieldPersistent(_fieldIndex, +1);
                 break;
 
             case ConsoleKey.Enter:
                 if (_fieldIndex is 1 or 2)
                 {
                     // Jour/Periode are selectors — Enter cycles forward
-                    CycleBlocField(bloc, _fieldIndex, +1);
+                    CycleBlocFieldPersistent(_fieldIndex, +1);
                 }
                 else if (_fieldIndex == 7)
                 {
@@ -469,13 +533,13 @@ public class ProgrammeOverlay
                 {
                     var formatted = FormatHHMM(_fieldEditBuffer);
                     if (formatted == null) break;
-                    SetBlocFieldValue(bloc, _fieldIndex, formatted);
+                    SetBlocFieldValuePersistent(_fieldIndex, formatted);
                 }
                 else
                 {
-                    SetBlocFieldValue(bloc, _fieldIndex, _fieldEditBuffer);
+                    SetBlocFieldValuePersistent(_fieldIndex, _fieldEditBuffer);
                 }
-                Modified = true;
+                SetModified();
                 _fieldEditing = false;
                 if (_fieldIndex < FieldLabels.Length - 1) _fieldIndex++;
                 break;
@@ -546,6 +610,79 @@ public class ProgrammeOverlay
         }
     }
 
+    /// <summary>Cycle un champ de bloc et écrit vers la donnée persistante (placement ou catalogue)</summary>
+    private void CycleBlocFieldPersistent(int fieldIndex, int direction)
+    {
+        // Also update the resolved copy for immediate display
+        var bloc = CurrentBloc;
+        if (bloc != null)
+            CycleBlocField(bloc, fieldIndex, direction);
+
+        switch (fieldIndex)
+        {
+            case 1: // Jour → placement
+                var p = CurrentPlacement;
+                if (p != null)
+                {
+                    var jOpts = FormOverlay.JourOptions;
+                    int ji = Array.IndexOf(jOpts, p.Jour);
+                    if (ji < 0) ji = 0;
+                    else ji = (ji + direction + jOpts.Length) % jOpts.Length;
+                    p.Jour = jOpts[ji];
+                }
+                break;
+            case 2: // Periode → catalogue
+                var catBloc = CurrentCatalogueBloc;
+                if (catBloc != null)
+                {
+                    var pOpts = FormOverlay.PeriodeOptions;
+                    int pi = Array.IndexOf(pOpts, catBloc.Periode);
+                    if (pi < 0) pi = 0;
+                    else pi = (pi + direction + pOpts.Length) % pOpts.Length;
+                    catBloc.Periode = pOpts[pi];
+                }
+                break;
+        }
+    }
+
+    /// <summary>Écrit une valeur de champ vers la donnée persistante (placement ou catalogue)</summary>
+    private void SetBlocFieldValuePersistent(int fieldIndex, string value)
+    {
+        // Also update the resolved copy for immediate display
+        var bloc = CurrentBloc;
+        if (bloc != null)
+            SetBlocFieldValue(bloc, fieldIndex, value);
+
+        switch (fieldIndex)
+        {
+            case 0: // Sequence → placement
+                if (int.TryParse(value, NumberStyles.Integer, Inv, out var seq))
+                {
+                    var p = CurrentPlacement;
+                    if (p != null) p.Sequence = seq;
+                }
+                break;
+            case 1: // Jour → placement
+                { var p = CurrentPlacement; if (p != null) p.Jour = value; }
+                break;
+            case 2: // Periode → catalogue
+                { var b = CurrentCatalogueBloc; if (b != null) b.Periode = value; }
+                break;
+            case 3:
+                { var b = CurrentCatalogueBloc; if (b != null) b.DebutDP = value; }
+                break;
+            case 4:
+                { var b = CurrentCatalogueBloc; if (b != null) b.FinDP = value; }
+                break;
+            case 5:
+                { var b = CurrentCatalogueBloc; if (b != null) b.DebutFDP = value; }
+                break;
+            case 6:
+                { var b = CurrentCatalogueBloc; if (b != null) b.FinFDP = value; }
+                break;
+        }
+    }
+
     public static string GetBlocFieldValue(BlocVol bloc, int fieldIndex) => fieldIndex switch
     {
         0 => bloc.Sequence.ToString(Inv),
@@ -590,8 +727,7 @@ public class ProgrammeOverlay
         var cal = _config.Calendrier;
         if (cal.Count == 0) { _view = ProgrammeView.SemainesTypes; return true; }
 
-        var refs = _config.SemainesTypes.Select(st => st.Reference).ToList();
-        if (refs.Count == 0) { _view = ProgrammeView.SemainesTypes; return true; }
+        if (_config.SemainesTypes.Count == 0) { _view = ProgrammeView.SemainesTypes; return true; }
 
         switch (key.Key)
         {
@@ -612,25 +748,30 @@ public class ProgrammeOverlay
                 break;
 
             case ConsoleKey.LeftArrow:
-                CycleCalRef(cal[_calIndex], refs, -1);
-                Modified = true;
+                CycleCalRef(cal[_calIndex], -1);
+                SetModified();
                 break;
 
             case ConsoleKey.RightArrow:
-                CycleCalRef(cal[_calIndex], refs, +1);
-                Modified = true;
+                CycleCalRef(cal[_calIndex], +1);
+                SetModified();
                 break;
         }
 
         return true;
     }
 
-    private static void CycleCalRef(AffectationSemaine aff, List<string> refs, int direction)
+    private void CycleCalRef(AffectationSemaine aff, int direction)
     {
-        int idx = refs.IndexOf(aff.SemaineTypeRef);
+        var stList = _config.SemainesTypes;
+        if (stList.Count == 0) return;
+
+        int idx = stList.FindIndex(s => s.Id == aff.SemaineTypeId);
         if (idx < 0) idx = 0;
-        else idx = (idx + direction + refs.Count) % refs.Count;
-        aff.SemaineTypeRef = refs[idx];
+        else idx = (idx + direction + stList.Count) % stList.Count;
+
+        aff.SemaineTypeId = stList[idx].Id;
+        aff.SemaineTypeRef = stList[idx].Reference;
     }
 
     // ══════════════════════════════════════════════
@@ -671,7 +812,7 @@ public class ProgrammeOverlay
                 break;
 
             case ConsoleKey.Insert:
-                // Open catalogue in pick mode
+                // Open catalogue in pick mode to add an etape
                 _view = ProgrammeView.Catalogue;
                 _catIndex = 0;
                 _catScroll = 0;
@@ -682,8 +823,15 @@ public class ProgrammeOverlay
             case ConsoleKey.Delete:
                 if (bloc.Vols.Count > 0)
                 {
-                    bloc.Vols.RemoveAt(_volIndex);
-                    Modified = true;
+                    // Remove the corresponding Etape from the catalogue bloc
+                    var catBloc = CurrentCatalogueBloc;
+                    if (catBloc != null)
+                    {
+                        var orderedEtapes = catBloc.Etapes.OrderBy(e => e.Position).ToList();
+                        if (_volIndex < orderedEtapes.Count)
+                            catBloc.Etapes.Remove(orderedEtapes[_volIndex]);
+                    }
+                    SetModified();
                     if (_volIndex >= bloc.Vols.Count && bloc.Vols.Count > 0)
                         _volIndex = bloc.Vols.Count - 1;
                 }
@@ -692,8 +840,12 @@ public class ProgrammeOverlay
             default:
                 if (key.KeyChar is 'm' or 'M' && bloc.Vols.Count > 0)
                 {
-                    bloc.Vols[_volIndex].MH = !bloc.Vols[_volIndex].MH;
-                    Modified = true;
+                    // MH toggle on the catalogue vol (affects all blocs using this vol)
+                    var vol = bloc.Vols[_volIndex];
+                    var catVol = _config.CatalogueVols.FirstOrDefault(v => v.Id == vol.Id);
+                    if (catVol != null)
+                        catVol.MH = !catVol.MH;
+                    SetModified();
                 }
                 break;
         }
@@ -778,7 +930,7 @@ public class ProgrammeOverlay
                 {
                     SetVolFieldValue(vol, _volFieldIndex, _volFieldEditBuffer);
                 }
-                Modified = true;
+                SetModified();
                 _volFieldEditing = false;
                 if (_volFieldIndex < VolFieldLabels.Length - 1) _volFieldIndex++;
                 break;
@@ -889,23 +1041,24 @@ public class ProgrammeOverlay
                 {
                     if (_catPickMode)
                     {
-                        // Copy vol into current bloc
+                        // Add an Etape referencing this vol to the catalogue bloc
                         var source = catalogue[_catIndex];
-                        var copy = new Vol
+                        var catBloc = CurrentCatalogueBloc;
+                        if (catBloc != null)
                         {
-                            Numero = source.Numero,
-                            Depart = source.Depart,
-                            Arrivee = source.Arrivee,
-                            HeureDepart = source.HeureDepart,
-                            HeureArrivee = source.HeureArrivee,
-                            MH = false
-                        };
-                        var bloc = CurrentBloc;
-                        if (bloc != null)
-                        {
-                            bloc.Vols.Add(copy);
-                            _volIndex = bloc.Vols.Count - 1;
-                            Modified = true;
+                            int nextPos = catBloc.Etapes.Count > 0
+                                ? catBloc.Etapes.Max(e => e.Position) + 1
+                                : 1;
+                            catBloc.Etapes.Add(new EtapeVol
+                            {
+                                Position = nextPos,
+                                VolId = source.Id
+                            });
+                            SetModified();
+                            // Update vol index to point to the new etape
+                            var bloc = CurrentBloc;
+                            if (bloc != null)
+                                _volIndex = bloc.Vols.Count - 1;
                         }
                         _view = ProgrammeView.VolsList;
                     }
@@ -926,7 +1079,7 @@ public class ProgrammeOverlay
                     var newVol = new Vol();
                     catalogue.Add(newVol);
                     _catIndex = catalogue.Count - 1;
-                    Modified = true;
+                    SetModified();
                     // Open edit popup
                     _catEditVol = newVol;
                     _catEditPopup = true;
@@ -938,10 +1091,18 @@ public class ProgrammeOverlay
             case ConsoleKey.Delete:
                 if (!_catPickMode && catalogue.Count > 0)
                 {
-                    catalogue.RemoveAt(_catIndex);
-                    Modified = true;
-                    if (_catIndex >= catalogue.Count && catalogue.Count > 0)
-                        _catIndex = catalogue.Count - 1;
+                    var volToDelete = catalogue[_catIndex];
+                    // Check if any bloc references this vol
+                    bool isReferenced = _config.CatalogueBlocs
+                        .Any(b => b.Etapes.Any(e => e.VolId == volToDelete.Id));
+                    if (!isReferenced)
+                    {
+                        catalogue.RemoveAt(_catIndex);
+                        SetModified();
+                        if (_catIndex >= catalogue.Count && catalogue.Count > 0)
+                            _catIndex = catalogue.Count - 1;
+                    }
+                    // If referenced, silently ignore (user must remove etapes first)
                 }
                 break;
         }
@@ -1007,7 +1168,7 @@ public class ProgrammeOverlay
                 {
                     SetVolFieldValue(_catEditVol, _catEditFieldIndex, _catEditFieldBuffer);
                 }
-                Modified = true;
+                SetModified();
                 _catEditFieldEditing = false;
                 if (_catEditFieldIndex < VolFieldLabels.Length - 1) _catEditFieldIndex++;
                 break;

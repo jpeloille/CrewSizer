@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using CrewSizer.Helpers;
 using CrewSizer.IO;
 using CrewSizer.Models;
 using CrewSizer.Services;
@@ -14,34 +15,67 @@ public class CommandHandler
     private Configuration _config;
     private readonly IOutputWriter _output;
     private readonly ITheme _theme;
-    private string? _configPath;
+    private readonly AppSettings _settings;
+    private string? _paramPath;
+    private string? _progPath;
+    private string? _volsPath;
+    private string? _equipagePath;
     private bool _dirty;
 
     public Configuration Config => _config;
     public bool IsDirty => _dirty;
-    public string? ConfigPath => _configPath;
+    public string? ParamPath => _paramPath;
+    public string? ProgPath => _progPath;
+    public string? VolsPath => _volsPath;
+    public string? EquipagePath => _equipagePath;
+    public AppSettings Settings => _settings;
 
     public void MarkDirty()
     {
         _dirty = true;
+        CatalogueResolver.ResoudreTout(_config);
         AutoSave();
     }
 
     private void AutoSave()
     {
-        if (_configPath != null)
+        var dir = _settings.RepertoireEffectif;
+        _paramPath ??= Path.Combine(dir, "Parametres.xml");
+        _progPath ??= Path.Combine(dir, "Programme.xml");
+        _volsPath ??= Path.Combine(dir, "CatalogueVols.xml");
+
+        XmlConfigLoader.SauvegarderParametres(_paramPath, _config);
+        XmlConfigLoader.SauvegarderProgramme(_progPath, _config);
+        XmlConfigLoader.SauvegarderCatalogueVols(_volsPath, _config);
+
+        if (_config.Equipage != null)
         {
-            XmlConfigLoader.Sauvegarder(_configPath, _config);
-            _dirty = false;
+            _equipagePath ??= Path.Combine(dir, "Equipage.xml");
+            XmlConfigLoader.SauvegarderEquipage(_equipagePath, _config.Equipage);
         }
+
+        _dirty = false;
+
+        _settings.DernierParametres = _paramPath;
+        _settings.DernierProgramme = _progPath;
+        _settings.DernierCatalogueVols = _volsPath;
+        if (_equipagePath != null)
+            _settings.DernierEquipage = _equipagePath;
+        _settings.Sauvegarder();
     }
 
-    public CommandHandler(Configuration config, IOutputWriter output, ITheme theme, string? configPath)
+    public CommandHandler(Configuration config, IOutputWriter output, ITheme theme,
+        string? paramPath, string? progPath, string? volsPath,
+        string? equipagePath = null, AppSettings? settings = null)
     {
         _config = config;
         _output = output;
         _theme = theme;
-        _configPath = configPath;
+        _settings = settings ?? new AppSettings();
+        _paramPath = paramPath;
+        _progPath = progPath;
+        _volsPath = volsPath;
+        _equipagePath = equipagePath;
     }
 
     public void ExecuteCommand(string command)
@@ -122,6 +156,8 @@ public class CommandHandler
             case "all":
                 ShowEffectif();
                 ShowFtl();
+                ShowVols();
+                ShowBlocs();
                 ShowSemtypes();
                 ShowCalendrier();
                 ShowProgramme();
@@ -154,12 +190,18 @@ public class CommandHandler
             case "cumul":
                 ShowCumul();
                 break;
+            case "vols":
+                ShowVols();
+                break;
+            case "blocs":
+                ShowBlocs();
+                break;
             case "off":
                 ShowOff();
                 break;
             default:
                 _output.WriteLine($"Section inconnue : {section}");
-                _output.WriteLine("Sections : effectif, ftl, semtypes, calendrier, programme, abat, sol, cumul, off");
+                _output.WriteLine("Sections : effectif, ftl, vols, blocs, semtypes, calendrier, programme, abat, sol, cumul, off");
                 break;
         }
     }
@@ -216,16 +258,28 @@ public class CommandHandler
             return;
         }
 
+        var blocsDict = _config.CatalogueBlocs.ToDictionary(b => b.Id);
         foreach (var st in _config.SemainesTypes)
         {
-            _output.WriteLine($"  {st.Reference} ({st.Saison}) - {st.Blocs.Count} blocs");
-            _output.WriteLine($"  {"#",3} {"Seq",4} {"Jour",-10}{"Per.",-8}{"DP",14}{"FDP",14}{"Vols",5}{"HDV",7}");
-            _output.WriteLine($"  {new string('-', 65)}");
-            for (int i = 0; i < st.Blocs.Count; i++)
+            _output.WriteLine($"  {st.Reference} ({st.Saison}) - {st.Placements.Count} placement(s)");
+            _output.WriteLine($"  {"#",3} {"Seq",4} {"Jour",-10}{"Code",-14}{"Per.",-8}{"DP",14}{"FDP",14}{"Vols",5}{"HDV",7}");
+            _output.WriteLine($"  {new string('-', 79)}");
+            var placements = st.Placements
+                .OrderBy(p => HeureHelper.JourVersIndex(p.Jour))
+                .ThenBy(p => p.Sequence)
+                .ToList();
+            for (int i = 0; i < placements.Count; i++)
             {
-                var b = st.Blocs[i];
-                _output.WriteLine(
-                    $"  {i + 1,3} {b.Sequence,4} {b.Jour,-10}{b.Periode,-8}{b.DebutDP}-{b.FinDP,14}{b.DebutFDP}-{b.FinFDP,14}{b.NbEtapes,5}{b.HdvBloc,7:F2}");
+                var p = placements[i];
+                if (blocsDict.TryGetValue(p.BlocId, out var b))
+                {
+                    _output.WriteLine(
+                        $"  {i + 1,3} {p.Sequence,4} {p.Jour,-10}{b.Code,-14}{b.Periode,-8}{b.DebutDP}-{b.FinDP,14}{b.DebutFDP}-{b.FinFDP,14}{b.NbEtapes,5}{b.HdvBloc,7:F2}");
+                }
+                else
+                {
+                    _output.WriteLine($"  {i + 1,3} {p.Sequence,4} {p.Jour,-10}(bloc inconnu: {p.BlocId})");
+                }
             }
             _output.WriteLine("");
         }
@@ -240,12 +294,16 @@ public class CommandHandler
             return;
         }
 
+        var stById = _config.SemainesTypes.ToDictionary(st => st.Id);
         var parAnnee = _config.Calendrier.OrderBy(a => a.Annee).ThenBy(a => a.Semaine);
         var sb = new StringBuilder();
         int col = 0;
         foreach (var a in parAnnee)
         {
-            sb.Append($"  S{a.Semaine:D2} {a.SemaineTypeRef,-8}");
+            var refDisplay = stById.TryGetValue(a.SemaineTypeId, out var st)
+                ? st.Reference
+                : a.SemaineTypeRef;
+            sb.Append($"  S{a.Semaine:D2} {refDisplay,-8}");
             col++;
             if (col >= 4)
             {
@@ -318,6 +376,50 @@ public class CommandHandler
         _output.WriteLine($"    Cumul 28j ....... {_config.LimitesCumulatives.CumulPNC.Cumul28Entrant:F1} h");
         _output.WriteLine($"    Cumul 90j ....... {_config.LimitesCumulatives.CumulPNC.Cumul90Entrant:F1} h");
         _output.WriteLine($"    Cumul 12m ....... {_config.LimitesCumulatives.CumulPNC.Cumul12Entrant:F1} h");
+    }
+
+    private void ShowVols()
+    {
+        _output.WriteLine("  CATALOGUE VOLS");
+        if (_config.CatalogueVols.Count == 0)
+        {
+            _output.WriteLine("    (vide)");
+            return;
+        }
+
+        _output.WriteLine($"  {"#",3} {"Numero",-8}{"Dep",-5}{"Arr",-5}{"HDep",-7}{"HArr",-7}{"HDV",6}");
+        _output.WriteLine($"  {new string('-', 41)}");
+        for (int i = 0; i < _config.CatalogueVols.Count; i++)
+        {
+            var v = _config.CatalogueVols[i];
+            _output.WriteLine($"  {i + 1,3} {v.Numero,-8}{v.Depart,-5}{v.Arrivee,-5}{v.HeureDepart,-7}{v.HeureArrivee,-7}{v.HdvVol,6:F2}");
+        }
+    }
+
+    private void ShowBlocs()
+    {
+        _output.WriteLine("  CATALOGUE BLOCS");
+        if (_config.CatalogueBlocs.Count == 0)
+        {
+            _output.WriteLine("    (vide)");
+            return;
+        }
+
+        // Compter les placements par bloc
+        var nbPlacements = new Dictionary<Guid, int>();
+        foreach (var st in _config.SemainesTypes)
+            foreach (var p in st.Placements)
+                nbPlacements[p.BlocId] = nbPlacements.GetValueOrDefault(p.BlocId) + 1;
+
+        _output.WriteLine($"  {"#",3} {"Code",-16}{"Per.",-8}{"DP",14}{"FDP",14}{"Vols",5}{"HDV",7}{"Plac.",6}");
+        _output.WriteLine($"  {new string('-', 73)}");
+        for (int i = 0; i < _config.CatalogueBlocs.Count; i++)
+        {
+            var b = _config.CatalogueBlocs[i];
+            var plac = nbPlacements.GetValueOrDefault(b.Id);
+            _output.WriteLine(
+                $"  {i + 1,3} {b.Code,-16}{b.Periode,-8}{b.DebutDP}-{b.FinDP,14}{b.DebutFDP}-{b.FinFDP,14}{b.NbEtapes,5}{b.HdvBloc,7:F2}{plac,6}");
+        }
     }
 
     private void ShowOff()
@@ -409,6 +511,23 @@ public class CommandHandler
             case "cumul":
                 HandleSetCumul(parts);
                 break;
+            case "srcdir":
+                var dirPath = string.Join(" ", parts.Skip(2));
+                if (string.IsNullOrWhiteSpace(dirPath))
+                {
+                    _output.WriteLine($"Repertoire de sources : {_settings.RepertoireEffectif}");
+                }
+                else if (Directory.Exists(dirPath))
+                {
+                    _settings.RepertoireSources = Path.GetFullPath(dirPath);
+                    _settings.Sauvegarder();
+                    _output.WriteLine($"{_theme.AlertOk}Repertoire de sources = {_settings.RepertoireSources}{_theme.Reset}");
+                }
+                else
+                {
+                    _output.WriteLine($"{_theme.AlertExceeded}Repertoire introuvable : {dirPath}{_theme.Reset}");
+                }
+                return; // pas de MarkDirty
             default:
                 _output.WriteLine($"Parametre inconnu : {param}");
                 break;
@@ -469,8 +588,9 @@ public class CommandHandler
         var annee = ParseInt(parts[3]);
         var refSt = parts[4];
 
-        // Vérifier que la référence existe
-        if (!_config.SemainesTypes.Any(st => st.Reference == refSt))
+        // Vérifier que la référence existe et récupérer l'Id
+        var st = _config.SemainesTypes.FirstOrDefault(s => s.Reference == refSt);
+        if (st == null)
         {
             _output.WriteLine($"Semaine type inconnue : '{refSt}'");
             return;
@@ -495,11 +615,16 @@ public class CommandHandler
             var existing = _config.Calendrier.FirstOrDefault(a => a.Semaine == s && a.Annee == annee);
             if (existing != null)
             {
+                existing.SemaineTypeId = st.Id;
                 existing.SemaineTypeRef = refSt;
             }
             else
             {
-                _config.Calendrier.Add(new AffectationSemaine { Semaine = s, Annee = annee, SemaineTypeRef = refSt });
+                _config.Calendrier.Add(new AffectationSemaine
+                {
+                    Semaine = s, Annee = annee,
+                    SemaineTypeId = st.Id, SemaineTypeRef = refSt
+                });
             }
             count++;
         }
@@ -514,18 +639,24 @@ public class CommandHandler
     {
         if (parts.Length < 2)
         {
-            _output.WriteLine("Usage: add bloc|abat|sol ...");
+            _output.WriteLine("Usage: add vol|bloc|placement|semtype|abat|sol ...");
             return;
         }
 
         var type = parts[1].ToLowerInvariant();
         switch (type)
         {
+            case "vol":
+                HandleAddVol(parts);
+                break;
             case "semtype":
                 HandleAddSemtype(parts);
                 break;
             case "bloc":
                 HandleAddBloc(parts);
+                break;
+            case "placement":
+                HandleAddPlacement(parts);
                 break;
             case "abat":
                 HandleAddAbattement(parts);
@@ -534,9 +665,33 @@ public class CommandHandler
                 HandleAddSol(parts);
                 break;
             default:
-                _output.WriteLine($"Type inconnu : {type} (semtype, bloc, abat, sol)");
+                _output.WriteLine($"Type inconnu : {type} (vol, semtype, bloc, placement, abat, sol)");
                 break;
         }
+    }
+
+    private void HandleAddVol(string[] parts)
+    {
+        // add vol <numero> <depart> <arrivee> <heureDepart> <heureArrivee>
+        if (parts.Length < 7)
+        {
+            _output.WriteLine("Usage: add vol <numero> <depart> <arrivee> <heureDepart> <heureArrivee>");
+            _output.WriteLine("  Exemple: add vol 201 NOU LIF 07:00 07:40");
+            return;
+        }
+
+        var vol = new Vol
+        {
+            Numero = parts[2],
+            Depart = parts[3],
+            Arrivee = parts[4],
+            HeureDepart = parts[5],
+            HeureArrivee = parts[6]
+        };
+
+        _config.CatalogueVols.Add(vol);
+        MarkDirty();
+        _output.WriteLine($"{_theme.AlertOk}Vol ajoute : {vol.Numero} {vol.Depart}-{vol.Arrivee} {vol.HeureDepart}-{vol.HeureArrivee} ({vol.HdvVol:F2}h){_theme.Reset}");
     }
 
     private void HandleAddSemtype(string[] parts)
@@ -582,18 +737,12 @@ public class CommandHandler
             return;
         }
 
-        var bloc = new BlocVol
-        {
-            Sequence = ParseInt(parts[3]),
-            Jour = parts[4],
-            Periode = parts[5],
-            DebutDP = parts[6],
-            FinDP = parts[7],
-            DebutFDP = parts[8],
-            FinFDP = parts[9]
-        };
+        var sequence = ParseInt(parts[3]);
+        var jour = parts[4];
 
-        // Parse vols : format "num-dep-arr-hdep-harr"
+        // 1. Résoudre ou créer les vols dans le catalogue
+        var etapes = new List<EtapeVol>();
+        int position = 1;
         for (int i = 10; i < parts.Length; i++)
         {
             var volParts = parts[i].Split('-');
@@ -603,19 +752,112 @@ public class CommandHandler
                 return;
             }
 
-            bloc.Vols.Add(new Vol
+            var numero = volParts[0];
+            var depart = volParts[1];
+            var arrivee = volParts[2];
+            var hDep = volParts[3];
+            var hArr = volParts[4];
+
+            // Chercher un vol existant correspondant dans le catalogue
+            var volExistant = _config.CatalogueVols.FirstOrDefault(v =>
+                v.Numero == numero && v.Depart == depart && v.Arrivee == arrivee
+                && v.HeureDepart == hDep && v.HeureArrivee == hArr);
+
+            if (volExistant == null)
             {
-                Numero = volParts[0],
-                Depart = volParts[1],
-                Arrivee = volParts[2],
-                HeureDepart = volParts[3],
-                HeureArrivee = volParts[4]
-            });
+                volExistant = new Vol
+                {
+                    Numero = numero, Depart = depart, Arrivee = arrivee,
+                    HeureDepart = hDep, HeureArrivee = hArr
+                };
+                _config.CatalogueVols.Add(volExistant);
+            }
+
+            etapes.Add(new EtapeVol { Position = position++, VolId = volExistant.Id });
         }
 
-        st.Blocs.Add(bloc);
+        // 2. Créer le bloc dans le catalogue
+        var bloc = new BlocVol
+        {
+            Periode = parts[5],
+            DebutDP = parts[6],
+            FinDP = parts[7],
+            DebutFDP = parts[8],
+            FinFDP = parts[9],
+            Etapes = etapes
+        };
+        // Générer un code unique
+        var firstVol = etapes.Count > 0
+            ? _config.CatalogueVols.FirstOrDefault(v => v.Id == etapes[0].VolId)
+            : null;
+        var dest = firstVol?.Arrivee ?? "???";
+        var codeBase = $"ROT-{dest}-{bloc.Periode}";
+        var code = codeBase;
+        int suffix = 2;
+        while (_config.CatalogueBlocs.Any(b => b.Code == code))
+            code = $"{codeBase}-{suffix++}";
+        bloc.Code = code;
+
+        _config.CatalogueBlocs.Add(bloc);
+
+        // 3. Créer le placement dans la semaine type
+        st.Placements.Add(new BlocPlacement
+        {
+            BlocId = bloc.Id,
+            Jour = jour,
+            Sequence = sequence
+        });
+
         MarkDirty();
-        _output.WriteLine($"{_theme.AlertOk}Bloc ajoute a {refSt} : seq {bloc.Sequence} {bloc.Jour} {bloc.Periode} ({bloc.NbEtapes} vols, {bloc.HdvBloc:F2}h HDV){_theme.Reset}");
+        _output.WriteLine($"{_theme.AlertOk}Bloc '{bloc.Code}' cree dans le catalogue et place dans {refSt} : seq {sequence} {jour} ({etapes.Count} vols){_theme.Reset}");
+    }
+
+    private void HandleAddPlacement(string[] parts)
+    {
+        // add placement <stRef> <seq> <jour> <blocCode>
+        if (parts.Length < 6)
+        {
+            _output.WriteLine("Usage: add placement <stRef> <sequence> <jour> <blocCode>");
+            _output.WriteLine("  Exemple: add placement BS_01 1 Lundi ROT-LIF-AM");
+            return;
+        }
+
+        var refSt = parts[2];
+        var st = _config.SemainesTypes.FirstOrDefault(s => s.Reference == refSt);
+        if (st == null)
+        {
+            _output.WriteLine($"Semaine type inconnue : '{refSt}'");
+            return;
+        }
+
+        var sequence = ParseInt(parts[3]);
+        var jour = parts[4];
+        var blocCode = parts[5];
+
+        if (HeureHelper.JourVersIndex(jour) == 0)
+        {
+            _output.WriteLine($"Jour invalide : '{jour}' (Lundi..Dimanche)");
+            return;
+        }
+
+        var bloc = _config.CatalogueBlocs.FirstOrDefault(b => b.Code == blocCode);
+        if (bloc == null)
+        {
+            _output.WriteLine($"Bloc inconnu : '{blocCode}'");
+            _output.WriteLine("Blocs disponibles : " +
+                string.Join(", ", _config.CatalogueBlocs.Select(b => b.Code)));
+            return;
+        }
+
+        st.Placements.Add(new BlocPlacement
+        {
+            BlocId = bloc.Id,
+            Jour = jour,
+            Sequence = sequence
+        });
+
+        MarkDirty();
+        _output.WriteLine($"{_theme.AlertOk}Placement ajoute dans {refSt} : seq {sequence} {jour} → {blocCode}{_theme.Reset}");
     }
 
     private void HandleAddAbattement(string[] parts)
@@ -689,18 +931,24 @@ public class CommandHandler
     {
         if (parts.Length < 3)
         {
-            _output.WriteLine("Usage: del bloc|abat|sol <index>");
+            _output.WriteLine("Usage: del vol|bloc|placement|semtype|abat|sol ...");
             return;
         }
 
         var type = parts[1].ToLowerInvariant();
         switch (type)
         {
+            case "vol":
+                HandleDelVol(parts);
+                break;
             case "semtype":
                 HandleDelSemtype(parts);
                 break;
             case "bloc":
                 HandleDelBloc(parts);
+                break;
+            case "placement":
+                HandleDelPlacement(parts);
                 break;
             case "abat":
                 HandleDelAbat(parts);
@@ -709,9 +957,79 @@ public class CommandHandler
                 HandleDelSol(parts);
                 break;
             default:
-                _output.WriteLine($"Type inconnu : {type} (semtype, bloc, abat, sol)");
+                _output.WriteLine($"Type inconnu : {type} (vol, semtype, bloc, placement, abat, sol)");
                 break;
         }
+    }
+
+    private void HandleDelVol(string[] parts)
+    {
+        // del vol <index>
+        if (parts.Length < 3)
+        {
+            _output.WriteLine("Usage: del vol <index>");
+            _output.WriteLine("  Utilisez 'show vols' pour voir les index.");
+            return;
+        }
+
+        int idx = ParseInt(parts[2]) - 1;
+        if (idx < 0 || idx >= _config.CatalogueVols.Count)
+        {
+            _output.WriteLine($"Index invalide : {idx + 1} (1..{_config.CatalogueVols.Count})");
+            return;
+        }
+
+        var vol = _config.CatalogueVols[idx];
+
+        // Vérifier qu'aucun bloc ne référence ce vol
+        var blocsRefs = _config.CatalogueBlocs
+            .Where(b => b.Etapes.Any(e => e.VolId == vol.Id))
+            .Select(b => b.Code)
+            .ToList();
+        if (blocsRefs.Count > 0)
+        {
+            _output.WriteLine($"Impossible : vol reference par les blocs : {string.Join(", ", blocsRefs)}");
+            return;
+        }
+
+        _config.CatalogueVols.RemoveAt(idx);
+        MarkDirty();
+        _output.WriteLine($"{_theme.AlertOk}Vol #{idx + 1} supprime : {vol.Numero} {vol.Depart}-{vol.Arrivee}{_theme.Reset}");
+    }
+
+    private void HandleDelPlacement(string[] parts)
+    {
+        // del placement <stRef> <index>
+        if (parts.Length < 4)
+        {
+            _output.WriteLine("Usage: del placement <stRef> <index>");
+            _output.WriteLine("  Utilisez 'show semtypes' pour voir les index.");
+            return;
+        }
+
+        var refSt = parts[2];
+        var st = _config.SemainesTypes.FirstOrDefault(s => s.Reference == refSt);
+        if (st == null)
+        {
+            _output.WriteLine($"Semaine type inconnue : '{refSt}'");
+            return;
+        }
+
+        int idx = ParseInt(parts[3]) - 1;
+        var placements = st.Placements
+            .OrderBy(p => HeureHelper.JourVersIndex(p.Jour))
+            .ThenBy(p => p.Sequence)
+            .ToList();
+
+        if (idx < 0 || idx >= placements.Count)
+        {
+            _output.WriteLine($"Index invalide : {idx + 1} (1..{placements.Count})");
+            return;
+        }
+
+        st.Placements.Remove(placements[idx]);
+        MarkDirty();
+        _output.WriteLine($"{_theme.AlertOk}Placement #{idx + 1} supprime de {refSt}.{_theme.Reset}");
     }
 
     private void HandleDelSemtype(string[] parts)
@@ -732,39 +1050,40 @@ public class CommandHandler
         }
 
         _config.SemainesTypes.Remove(st);
-        // Retirer les affectations calendrier qui référencent cette semaine type
-        _config.Calendrier.RemoveAll(a => a.SemaineTypeRef == refSt);
+        // Retirer les affectations calendrier qui référencent cette semaine type (par Id)
+        _config.Calendrier.RemoveAll(a => a.SemaineTypeId == st.Id);
         MarkDirty();
         _output.WriteLine($"{_theme.AlertOk}Semaine type '{refSt}' supprimee (+ affectations calendrier){_theme.Reset}");
     }
 
     private void HandleDelBloc(string[] parts)
     {
-        // del bloc <ref> <index>
-        if (parts.Length < 4)
+        // del bloc <code>
+        if (parts.Length < 3)
         {
-            _output.WriteLine("Usage: del bloc <reference_semtype> <index>");
+            _output.WriteLine("Usage: del bloc <code>");
+            _output.WriteLine("  Supprime le bloc du catalogue et tous ses placements.");
             return;
         }
 
-        var refSt = parts[2];
-        var st = _config.SemainesTypes.FirstOrDefault(s => s.Reference == refSt);
-        if (st == null)
+        var code = parts[2];
+        var bloc = _config.CatalogueBlocs.FirstOrDefault(b => b.Code == code);
+        if (bloc == null)
         {
-            _output.WriteLine($"Semaine type inconnue : '{refSt}'");
+            _output.WriteLine($"Bloc inconnu : '{code}'");
             return;
         }
 
-        int idx = ParseInt(parts[3]) - 1;
-        if (idx < 0 || idx >= st.Blocs.Count)
+        // Retirer tous les placements qui référencent ce bloc
+        int nbPlacements = 0;
+        foreach (var st in _config.SemainesTypes)
         {
-            _output.WriteLine($"Index invalide : {idx + 1} (1..{st.Blocs.Count})");
-            return;
+            nbPlacements += st.Placements.RemoveAll(p => p.BlocId == bloc.Id);
         }
 
-        st.Blocs.RemoveAt(idx);
+        _config.CatalogueBlocs.Remove(bloc);
         MarkDirty();
-        _output.WriteLine($"{_theme.AlertOk}Bloc #{idx + 1} supprime de {refSt}.{_theme.Reset}");
+        _output.WriteLine($"{_theme.AlertOk}Bloc '{code}' supprime du catalogue ({nbPlacements} placement(s) retires).{_theme.Reset}");
     }
 
     private void HandleDelAbat(string[] parts)
@@ -839,27 +1158,27 @@ public class CommandHandler
 
     private void HandleSave(string[] parts)
     {
-        string path;
         if (parts.Length > 1)
         {
-            path = parts[1];
-            if (!Path.HasExtension(path) || Path.GetExtension(path).ToLowerInvariant() != ".xml")
-                path = Path.ChangeExtension(path, ".xml");
+            var baseName = Path.GetFileNameWithoutExtension(parts[1]);
+            var dir = _settings.RepertoireEffectif;
+            _paramPath = Path.Combine(dir, $"{baseName}.params.xml");
+            _progPath = Path.Combine(dir, $"{baseName}.prog.xml");
+            _volsPath = Path.Combine(dir, $"{baseName}.vols.xml");
+            if (_config.Equipage != null)
+                _equipagePath = Path.Combine(dir, $"{baseName}.equip.xml");
         }
-        else if (_configPath != null)
+        else if (_paramPath == null)
         {
-            path = _configPath;
-        }
-        else
-        {
-            _output.WriteLine("Usage: save <chemin.xml>");
+            _output.WriteLine("Usage: save <nom_base>");
             return;
         }
 
-        XmlConfigLoader.Sauvegarder(path, _config);
-        _configPath = path;
-        _dirty = false;
-        _output.WriteLine($"{_theme.AlertOk}Configuration sauvegardee : {path}{_theme.Reset}");
+        AutoSave();
+        var msg = $"{Path.GetFileName(_paramPath!)} / {Path.GetFileName(_progPath!)} / {Path.GetFileName(_volsPath!)}";
+        if (_equipagePath != null)
+            msg += $" / {Path.GetFileName(_equipagePath)}";
+        _output.WriteLine($"{_theme.AlertOk}Sauvegarde : {msg}{_theme.Reset}");
     }
 
     // ── load ──
@@ -873,10 +1192,46 @@ public class CommandHandler
         }
 
         var path = parts[1];
-        _config = XmlConfigLoader.Charger(path);
-        _configPath = path;
-        _dirty = false;
-        _output.WriteLine($"{_theme.AlertOk}Configuration chargee : {path}{_theme.Reset}");
+        var type = XmlConfigLoader.DetecterType(path);
+
+        switch (type)
+        {
+            case ConfigFileType.Legacy:
+                _config = XmlConfigLoader.Charger(path);
+                _paramPath = path;
+                _progPath = null;
+                _volsPath = null;
+                _dirty = false;
+                _output.WriteLine($"{_theme.AlertOk}Configuration legacy chargee : {path}{_theme.Reset}");
+                break;
+            case ConfigFileType.Parametres:
+                XmlConfigLoader.MergerParametres(_config, XmlConfigLoader.ChargerParametres(path));
+                _paramPath = path;
+                _dirty = false;
+                _output.WriteLine($"{_theme.AlertOk}Parametres charges : {path}{_theme.Reset}");
+                break;
+            case ConfigFileType.Programme:
+                XmlConfigLoader.MergerProgramme(_config, XmlConfigLoader.ChargerProgramme(path));
+                _progPath = path;
+                _dirty = false;
+                _output.WriteLine($"{_theme.AlertOk}Programme charge : {path}{_theme.Reset}");
+                break;
+            case ConfigFileType.CatalogueVols:
+                XmlConfigLoader.MergerCatalogueVols(_config, XmlConfigLoader.ChargerCatalogueVols(path));
+                _volsPath = path;
+                _dirty = false;
+                _output.WriteLine($"{_theme.AlertOk}Catalogue vols charge : {path}{_theme.Reset}");
+                break;
+            case ConfigFileType.Equipage:
+                XmlConfigLoader.MergerEquipage(_config, XmlConfigLoader.ChargerEquipage(path));
+                _equipagePath = path;
+                _dirty = false;
+                _output.WriteLine($"{_theme.AlertOk}Equipage charge : {path}{_theme.Reset}");
+                break;
+            default:
+                _output.WriteLine($"{_theme.AlertExceeded}Fichier XML non reconnu : {path}{_theme.Reset}");
+                break;
+        }
     }
 
     // ── new ──
@@ -884,9 +1239,84 @@ public class CommandHandler
     private void HandleNew()
     {
         _config = new Configuration();
-        _configPath = null;
+        _paramPath = null;
+        _progPath = null;
+        _volsPath = null;
+        _equipagePath = null;
         _dirty = false;
         _output.WriteLine($"{_theme.AlertOk}Configuration reinitialisee.{_theme.Reset}");
+    }
+
+    // ── Public file operations (for FileMenuOverlay) ──
+
+    public void LoadConfig(string path, ConfigFileType type)
+    {
+        switch (type)
+        {
+            case ConfigFileType.Legacy:
+                _config = XmlConfigLoader.Charger(path);
+                _paramPath = path;
+                _progPath = null;
+                _volsPath = null;
+                break;
+            case ConfigFileType.Parametres:
+                XmlConfigLoader.MergerParametres(_config, XmlConfigLoader.ChargerParametres(path));
+                _paramPath = path;
+                break;
+            case ConfigFileType.Programme:
+                XmlConfigLoader.MergerProgramme(_config, XmlConfigLoader.ChargerProgramme(path));
+                _progPath = path;
+                break;
+            case ConfigFileType.CatalogueVols:
+                XmlConfigLoader.MergerCatalogueVols(_config, XmlConfigLoader.ChargerCatalogueVols(path));
+                _volsPath = path;
+                break;
+            case ConfigFileType.Equipage:
+                XmlConfigLoader.MergerEquipage(_config, XmlConfigLoader.ChargerEquipage(path));
+                _equipagePath = path;
+                break;
+        }
+        _dirty = false;
+    }
+
+    public void SaveConfigAs(string path, ConfigFileType type)
+    {
+        if (!Path.HasExtension(path) || Path.GetExtension(path).ToLowerInvariant() != ".xml")
+            path = Path.ChangeExtension(path, ".xml");
+
+        switch (type)
+        {
+            case ConfigFileType.Parametres:
+                XmlConfigLoader.SauvegarderParametres(path, _config);
+                _paramPath = path;
+                break;
+            case ConfigFileType.Programme:
+                XmlConfigLoader.SauvegarderProgramme(path, _config);
+                _progPath = path;
+                break;
+            case ConfigFileType.CatalogueVols:
+                XmlConfigLoader.SauvegarderCatalogueVols(path, _config);
+                _volsPath = path;
+                break;
+            case ConfigFileType.Equipage:
+                if (_config.Equipage != null)
+                {
+                    XmlConfigLoader.SauvegarderEquipage(path, _config.Equipage);
+                    _equipagePath = path;
+                }
+                break;
+        }
+        _dirty = false;
+    }
+
+    public void NewConfig()
+    {
+        _config = new Configuration();
+        _paramPath = null;
+        _progPath = null;
+        _volsPath = null;
+        _equipagePath = null;
+        _dirty = false;
     }
 
     // ── Helpers ──

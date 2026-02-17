@@ -1,4 +1,5 @@
 using System.Globalization;
+using CrewSizer.Helpers;
 using CrewSizer.Models;
 
 namespace CrewSizer.Services;
@@ -57,7 +58,8 @@ public static class CalendrierHelper
         semainesMois = nbSemaines;
 
         var blocs = new List<BlocVol>();
-        var semainesTypesDict = config.SemainesTypes.ToDictionary(st => st.Reference);
+        var stById = config.SemainesTypes.ToDictionary(st => st.Id);
+        var blocsDict = config.CatalogueBlocs.ToDictionary(b => b.Id);
 
         foreach (var (semaine, annee) in semainesDuMois)
         {
@@ -66,16 +68,39 @@ public static class CalendrierHelper
 
             if (affectation == null) continue;
 
-            if (semainesTypesDict.TryGetValue(affectation.SemaineTypeRef, out var st))
-                blocs.AddRange(st.Blocs);
+            if (!stById.TryGetValue(affectation.SemaineTypeId, out var st))
+                continue;
+
+            foreach (var placement in st.Placements
+                         .OrderBy(p => HeureHelper.JourVersIndex(p.Jour))
+                         .ThenBy(p => p.Sequence))
+            {
+                if (!blocsDict.TryGetValue(placement.BlocId, out var blocTemplate))
+                    continue;
+
+                blocs.Add(new BlocVol
+                {
+                    Id = blocTemplate.Id,
+                    Code = blocTemplate.Code,
+                    Periode = blocTemplate.Periode,
+                    DebutDP = blocTemplate.DebutDP,
+                    FinDP = blocTemplate.FinDP,
+                    DebutFDP = blocTemplate.DebutFDP,
+                    FinFDP = blocTemplate.FinFDP,
+                    Etapes = blocTemplate.Etapes,
+                    Vols = blocTemplate.Vols,
+                    Jour = placement.Jour,
+                    Sequence = placement.Sequence
+                });
+            }
         }
 
         return blocs;
     }
 
-    /// <summary>Retourne les blocs uniques (1 exemplaire par semaine type) pour vérifications TSV</summary>
+    /// <summary>Retourne les blocs uniques du catalogue pour vérifications TSV</summary>
     public static List<BlocVol> BlocsUniques(Configuration config)
     {
-        return config.SemainesTypes.SelectMany(st => st.Blocs).ToList();
+        return config.CatalogueBlocs.ToList();
     }
 }

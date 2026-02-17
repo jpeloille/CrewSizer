@@ -8,7 +8,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <None Update="Config/parametres.xml">
+        <None Update="Config/Parametres.xml">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </None>
     </ItemGroup>

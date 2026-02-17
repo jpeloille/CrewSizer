@@ -98,18 +98,15 @@ public class FormOverlay
         AddField("cumulPnc", "Cumul 90j", c.LimitesCumulatives.CumulPNC.Cumul90Entrant.ToString("F1", Inv), "cumul.pnc.90");
         AddField("cumulPnc", "Cumul 12m", c.LimitesCumulatives.CumulPNC.Cumul12Entrant.ToString("F1", Inv), "cumul.pnc.12");
 
-        // SEMAINES TYPES
+        // SEMAINES TYPES (Reference + Saison uniquement — F3 pour editer les placements)
+        AddSection("semtypes", "SEMAINES TYPES (F3 pour placements)");
         for (int stIdx = 0; stIdx < c.SemainesTypes.Count; stIdx++)
         {
             var st = c.SemainesTypes[stIdx];
-            var stSection = $"st.{stIdx}";
-            AddSection(stSection, $"SEMAINE TYPE {st.Reference} ({st.Saison})");
-            AddField(stSection, "Reference", st.Reference, $"st.{stIdx}.ref");
-            AddSelector(stSection, "Saison", st.Saison, $"st.{stIdx}.saison", SaisonOptions);
-            for (int i = 0; i < st.Blocs.Count; i++)
-                AddBlocVolFields(stSection, st.Blocs[i], i);
-            AddAdd(stSection, $"Ajouter un bloc a {st.Reference}");
+            AddField("semtypes", $"  {stIdx + 1}. Reference", st.Reference, $"semtypes.{stIdx}.ref", stIdx);
+            AddSelector("semtypes", $"  {stIdx + 1}. Saison", st.Saison, $"semtypes.{stIdx}.saison", SaisonOptions, stIdx);
         }
+        AddAdd("semtypes", "Ajouter une semaine type");
 
         // ABATTEMENTS PNT
         AddSection("abatPnt", "ABATTEMENTS PNT");
@@ -240,71 +237,40 @@ public class FormOverlay
 
     private void RebuildSemainesTypes(Configuration config)
     {
-        // Find all st.N sections
-        var stSections = _rows
-            .Where(r => r.SectionId.StartsWith("st.") && r.Kind == FormRowKind.SectionHeader)
-            .Select(r => r.SectionId)
-            .Distinct()
-            .OrderBy(s => s)
-            .ToList();
-
-        config.SemainesTypes.Clear();
-
-        foreach (var section in stSections)
+        // Collect form values by listIndex
+        var items = new Dictionary<int, (string Reference, string Saison)>();
+        foreach (var row in _rows.Where(r => r.SectionId == "semtypes" && r.ListIndex >= 0))
         {
-            var st = new SemaineType();
+            if (!items.ContainsKey(row.ListIndex))
+                items[row.ListIndex] = ("", "BASSE");
 
-            // Get ref and saison fields
-            foreach (var row in _rows.Where(r => r.SectionId == section && r.Kind == FormRowKind.Field && r.ListIndex < 0))
-            {
-                if (row.Key.EndsWith(".ref")) st.Reference = row.Value;
-                else if (row.Key.EndsWith(".saison")) st.Saison = row.Value;
-            }
-
-            // Get blocs
-            var items = new Dictionary<int, BlocVol>();
-            foreach (var row in _rows.Where(r => r.SectionId == section && r.Kind == FormRowKind.Field && r.ListIndex >= 0))
-            {
-                if (!items.ContainsKey(row.ListIndex))
-                    items[row.ListIndex] = new BlocVol();
-
-                var bloc = items[row.ListIndex];
-                if (row.Key.EndsWith(".seq")) bloc.Sequence = PInt(row.Value);
-                else if (row.Key.EndsWith(".jour")) bloc.Jour = row.Value;
-                else if (row.Key.EndsWith(".periode")) bloc.Periode = row.Value;
-                else if (row.Key.EndsWith(".debutDP")) bloc.DebutDP = row.Value;
-                else if (row.Key.EndsWith(".finDP")) bloc.FinDP = row.Value;
-                else if (row.Key.EndsWith(".debutFDP")) bloc.DebutFDP = row.Value;
-                else if (row.Key.EndsWith(".finFDP")) bloc.FinFDP = row.Value;
-                else if (row.Key.EndsWith(".vols"))
-                    bloc.Vols = ParseVolsString(row.Value);
-            }
-
-            st.Blocs = items.OrderBy(kv => kv.Key).Select(kv => kv.Value).ToList();
-            config.SemainesTypes.Add(st);
+            var item = items[row.ListIndex];
+            if (row.Key.EndsWith(".ref"))
+                items[row.ListIndex] = (row.Value, item.Saison);
+            else if (row.Key.EndsWith(".saison"))
+                items[row.ListIndex] = (item.Reference, row.Value);
         }
-    }
 
-    private static List<Vol> ParseVolsString(string s)
-    {
-        if (string.IsNullOrWhiteSpace(s)) return [];
+        var ordered = items.OrderBy(kv => kv.Key).ToList();
 
-        var vols = new List<Vol>();
-        foreach (var part in s.Split(';', StringSplitOptions.RemoveEmptyEntries))
+        // Update existing SemaineTypes (preserving Id, Placements, Blocs)
+        for (int i = 0; i < ordered.Count; i++)
         {
-            var fields = part.Split('-');
-            if (fields.Length < 5) continue;
-
-            vols.Add(new Vol
+            var (reference, saison) = ordered[i].Value;
+            if (i < config.SemainesTypes.Count)
             {
-                Numero = fields[0],
-                Depart = fields[1],
-                Arrivee = fields[2],
-                HeureDepart = fields[3],
-                HeureArrivee = fields[4]
-            });
+                config.SemainesTypes[i].Reference = reference;
+                config.SemainesTypes[i].Saison = saison;
+            }
+            else
+            {
+                config.SemainesTypes.Add(new SemaineType { Reference = reference, Saison = saison });
+            }
         }
-        return vols;
+
+        // Remove excess
+        while (config.SemainesTypes.Count > ordered.Count)
+            config.SemainesTypes.RemoveAt(config.SemainesTypes.Count - 1);
     }
 
     private List<T> BuildList<T>(string sectionId, Action<T, string, string> setter) where T : new()
@@ -555,16 +521,10 @@ public class FormOverlay
 
         // Create rows based on section type
         var newRows = new List<FormRow>();
-        if (sectionId.StartsWith("st."))
+        if (sectionId == "semtypes")
         {
-            newRows.Add(MakeField(sectionId, $"  Bloc {newIdx + 1} - Sequence", "1", $"{sectionId}.{newIdx}.seq", newIdx));
-            newRows.Add(MakeSelector(sectionId, $"  Bloc {newIdx + 1} - Jour", "Lundi", $"{sectionId}.{newIdx}.jour", JourOptions, newIdx));
-            newRows.Add(MakeSelector(sectionId, $"  Bloc {newIdx + 1} - Periode", "AM", $"{sectionId}.{newIdx}.periode", PeriodeOptions, newIdx));
-            newRows.Add(MakeField(sectionId, $"  Bloc {newIdx + 1} - Debut DP", "06:00", $"{sectionId}.{newIdx}.debutDP", newIdx));
-            newRows.Add(MakeField(sectionId, $"  Bloc {newIdx + 1} - Fin DP", "09:00", $"{sectionId}.{newIdx}.finDP", newIdx));
-            newRows.Add(MakeField(sectionId, $"  Bloc {newIdx + 1} - Debut FDP", "06:30", $"{sectionId}.{newIdx}.debutFDP", newIdx));
-            newRows.Add(MakeField(sectionId, $"  Bloc {newIdx + 1} - Fin FDP", "08:30", $"{sectionId}.{newIdx}.finFDP", newIdx));
-            newRows.Add(MakeField(sectionId, $"  Bloc {newIdx + 1} - Vols", "101-NOU-LIF-07:00-07:30", $"{sectionId}.{newIdx}.vols", newIdx));
+            newRows.Add(MakeField(sectionId, $"  {newIdx + 1}. Reference", "", $"{sectionId}.{newIdx}.ref", newIdx));
+            newRows.Add(MakeSelector(sectionId, $"  {newIdx + 1}. Saison", "BASSE", $"{sectionId}.{newIdx}.saison", SaisonOptions, newIdx));
         }
         else switch (sectionId)
         {
