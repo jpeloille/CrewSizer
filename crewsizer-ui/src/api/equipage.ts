@@ -1,6 +1,7 @@
 import apiClient from './client';
 import type {
   QualificationMatrixDto,
+  MembreEquipageDto,
   MembreDetailDto,
   EquipageKpiDto,
   AlerteQualificationDto,
@@ -47,5 +48,10 @@ export const equipageApi = {
       .post<ImportEquipageResultDto>('/equipage/import', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       })
+      .then((r) => r.data),
+
+  updateMembreRoles: (id: string, roles: string[]) =>
+    apiClient
+      .patch<MembreEquipageDto>(`/equipage/membres/${id}/roles`, { roles })
       .then((r) => r.data),
 };

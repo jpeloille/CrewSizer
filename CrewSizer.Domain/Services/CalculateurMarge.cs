@@ -157,7 +157,7 @@ public static class CalculateurMarge
 
         if (categories.Length > 0)
         {
-            var contraignante = categories.MaxBy(c => c.TauxEngagement)!;
+            var contraignante = categories.OrderByDescending(c => c.TauxEngagement).ThenBy(c => c.Nom).First();
             result.TauxEngagementGlobal = contraignante.TauxEngagement;
             result.CategorieContraignante = contraignante.Nom;
             result.StatutGlobal = DeterminerStatut(contraignante.TauxEngagement);

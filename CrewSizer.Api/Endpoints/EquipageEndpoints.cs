@@ -53,5 +53,17 @@ public static class EquipageEndpoints
 
         group.MapGet("/checks/{code}/membres", async (string code, IMediator mediator) =>
             Results.Ok(await mediator.Send(new GetMembresPourCheckQuery(code))));
+
+        group.MapPatch("/membres/{id:guid}/roles",
+            async (Guid id, UpdateMembreRolesRequest req, IMediator mediator) =>
+            {
+                var dto = await mediator.Send(new UpdateMembreRolesCommand(id, req.Roles));
+                return Results.Ok(dto);
+            });
     }
+}
+
+public class UpdateMembreRolesRequest
+{
+    public List<string> Roles { get; set; } = [];
 }

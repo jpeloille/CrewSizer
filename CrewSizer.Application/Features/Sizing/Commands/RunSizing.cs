@@ -11,7 +11,8 @@ namespace CrewSizer.Application.Features.Sizing.Commands;
 
 public record RunSizingCommand(
     Guid ScenarioId,
-    string? CalculePar = null
+    string? CalculePar = null,
+    string? SolveId = null
 ) : IRequest<CombinedSizingResult>;
 
 public class RunSizingHandler(
@@ -83,18 +84,36 @@ public class RunSizingHandler(
             stDict,
             blocDict);
 
-        // 5. Construire les règles FTL
+        // 5. Lire les réglages solver depuis AppSettings
+        var solverSettings = await db.AppSettings
+            .AsNoTracking()
+            .Where(s => s.Key.StartsWith("solver."))
+            .ToDictionaryAsync(s => s.Key, s => s.Value, cancellationToken);
+
+        var deterministic = string.Equals(
+            solverSettings.GetValueOrDefault("solver.deterministic", "false"),
+            "true", StringComparison.OrdinalIgnoreCase);
+
+        var timeoutSeconds = int.TryParse(
+            solverSettings.GetValueOrDefault("solver.timeout", "30"), out var t) && t > 0 ? t : 30;
+
+        var numWorkers = int.TryParse(
+            solverSettings.GetValueOrDefault("solver.workers", "0"), out var w) && w > 0 ? w : Environment.ProcessorCount;
+
+        // 6. Construire les règles FTL
         var ftlRules = MapFtlRules(scenario);
 
-        // 6. Appeler le solver pour PNT
+        // 7. Appeler le solver pour PNT
         var pntResult = await SolveForCategory(
             CrewCategory.PNT, TypeContrat.PNT, membres, indispoParMembre,
-            scenario, dailyPrograms, ftlRules, cancellationToken);
+            scenario, dailyPrograms, ftlRules, deterministic, timeoutSeconds, numWorkers,
+            request.SolveId, cancellationToken);
 
-        // 7. Appeler le solver pour PNC
+        // 8. Appeler le solver pour PNC
         var pncResult = await SolveForCategory(
             CrewCategory.PNC, TypeContrat.PNC, membres, indispoParMembre,
-            scenario, dailyPrograms, ftlRules, cancellationToken);
+            scenario, dailyPrograms, ftlRules, deterministic, timeoutSeconds, numWorkers,
+            request.SolveId, cancellationToken);
 
         return new CombinedSizingResult
         {
@@ -111,6 +130,10 @@ public class RunSizingHandler(
         ConfigurationScenario scenario,
         List<DailyProgram> dailyPrograms,
         FtlRules ftlRules,
+        bool deterministic,
+        int timeoutSeconds,
+        int numWorkers,
+        string? solveId,
         CancellationToken cancellationToken)
     {
         var membresCategorie = allMembres.Where(m => m.Contrat == contrat).ToList();
@@ -133,7 +156,11 @@ public class RunSizingHandler(
             Category = category,
             DailyPrograms = dailyPrograms,
             AvailableCrew = crewInfos,
-            FtlRules = ftlRules
+            FtlRules = ftlRules,
+            Deterministic = deterministic,
+            TimeoutSeconds = timeoutSeconds,
+            NumWorkers = numWorkers,
+            SolveId = solveId
         };
 
         return await solver.SolveAsync(sizingRequest, cancellationToken);

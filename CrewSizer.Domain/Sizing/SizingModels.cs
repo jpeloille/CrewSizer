@@ -35,6 +35,18 @@ public sealed class SizingRequest
 
     /// <summary>Nombre de workers parallèles (défaut: nombre de CPUs).</summary>
     public int NumWorkers { get; init; } = Environment.ProcessorCount;
+
+    /// <summary>
+    /// Mode déterministe : force num_workers=1 et random_seed=0 pour garantir
+    /// des résultats identiques entre exécutions. Plus lent mais reproductible.
+    /// </summary>
+    public bool Deterministic { get; init; }
+
+    /// <summary>
+    /// Identifiant de suivi de progression. Si renseigné, le solver envoie
+    /// des mises à jour via SolveProgressTracker à chaque solution intermédiaire.
+    /// </summary>
+    public string? SolveId { get; init; }
 }
 
 /// <summary>Programme d'un jour : date + blocs à couvrir.</summary>

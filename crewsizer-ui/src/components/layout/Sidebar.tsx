@@ -3,11 +3,10 @@ import {
   LayoutDashboard,
   FileText,
   Plane,
-  Layers,
-  PlaneTakeoff,
   Calendar,
   Users,
   BarChart3,
+  Settings,
   LogOut,
 } from 'lucide-react';
 import { useAuth } from '@/features/auth/AuthContext';
@@ -20,12 +19,11 @@ const navItems = [
   { to: '/scenarios', icon: FileText, label: 'Scenarios' },
   { to: '/programme/vols', icon: Plane, label: 'Vols' },
   { to: '/programme/blocs', icon: Plane, label: 'Blocs' },
-  { to: '/bloc-types', icon: Layers, label: 'Types de blocs' },
-  { to: '/types-avion', icon: PlaneTakeoff, label: 'Types avion' },
   { to: '/programme/semaines', icon: Calendar, label: 'Semaines types' },
   { to: '/programme/calendrier', icon: Calendar, label: 'Calendrier' },
   { to: '/equipage', icon: Users, label: 'Equipage' },
   { to: '/resultats', icon: BarChart3, label: 'Resultats' },
+  { to: '/parametres', icon: Settings, label: 'Parametres' },
 ];
 
 export function Sidebar() {

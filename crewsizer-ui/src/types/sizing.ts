@@ -43,3 +43,15 @@ export interface CombinedSizingResult {
   isBothFeasible: boolean;
   totalSolveTimeMs: number;
 }
+
+export interface SolveProgress {
+  solveId: string;
+  status: 'running' | 'completed' | 'error';
+  solutionsFound: number;
+  bestObjective: number;
+  elapsedSeconds: number;
+  secondsSinceLastImprovement: number | null;
+  currentCategory: string | null;
+  result: CombinedSizingResult | null;
+  errorMessage: string | null;
+}

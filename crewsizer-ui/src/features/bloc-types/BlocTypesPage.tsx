@@ -157,8 +157,6 @@ export function BlocTypesPage() {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-2xl font-bold text-foreground">Types de blocs</h2>
-
       <div className="flex items-center justify-between">
         <span className="font-data text-xs text-muted-foreground">
           {blocTypes.length} type(s) de bloc

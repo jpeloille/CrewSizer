@@ -36,9 +36,11 @@ public class Configuration
         List<SemaineType> semainesTypes,
         DonneesEquipage? equipage = null)
     {
-        // Effectif : dérivé de l'import APM si disponible, sinon fallback scénario
+        // Effectif : opérationnel (compétents + disponibles) si import APM, sinon fallback scénario
         var effectif = equipage != null
-            ? equipage.CalculerEffectif()
+            ? equipage.CalculerEffectifOperationnel(
+                scenario.Periode.DateDebut.ToDateTime(TimeOnly.MinValue),
+                scenario.Periode.DateFin.ToDateTime(TimeOnly.MinValue))
             : scenario.Effectif;
 
         return new Configuration

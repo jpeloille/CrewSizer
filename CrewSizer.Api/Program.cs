@@ -68,7 +68,8 @@ builder.Services.AddSingleton<TokenService>();
 // Application layer (MediatR + FluentValidation)
 builder.Services.AddApplication();
 
-// CP-SAT Solver
+// CP-SAT Solver + Progress Tracker
+builder.Services.AddSingleton<CrewSizer.Infrastructure.Solver.SolveProgressTracker>();
 builder.Services.AddScoped<ISizingSolver, OrToolsSizingSolver>();
 
 // CORS
@@ -157,5 +158,6 @@ app.MapCalendrierEndpoints();
 app.MapCalculEndpoints();
 app.MapSizingEndpoints();
 app.MapEquipageEndpoints();
+app.MapAppSettingsEndpoints();
 
 app.Run();

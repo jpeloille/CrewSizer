@@ -54,6 +54,46 @@ public class DonneesEquipage
         return new Effectif { Cdb = cdb, Opl = opl, Cc = cc, Pnc = pnc };
     }
 
+    /// <summary>Liste des membres actifs exclus du calcul, avec la raison</summary>
+    public List<(MembreEquipage Membre, string Raison)> MembresNonEngageables(DateTime debutPeriode, DateTime finPeriode)
+    {
+        var result = new List<(MembreEquipage, string)>();
+        var joursPeriode = (finPeriode.Date - debutPeriode.Date).Days + 1;
+
+        foreach (var m in Membres.Where(m => m.Actif))
+        {
+            if (!EstCompetent(m))
+            {
+                // Trouver les checks expirés pour le message
+                var groupe = m.Contrat == TypeContrat.PNT ? GroupeCheck.Cockpit : GroupeCheck.Cabine;
+                var checksExpires = Competences
+                    .Where(c => c.Groupe == groupe)
+                    .SelectMany(c => c.ChecksRequis)
+                    .Where(code => m.Qualifications
+                        .Any(q => q.CodeCheck.Equals(code, StringComparison.OrdinalIgnoreCase)
+                                  && q.Statut == StatutCheck.Expire))
+                    .Distinct()
+                    .ToList();
+
+                var detail = checksExpires.Count > 0
+                    ? string.Join(", ", checksExpires)
+                    : "qualifications insuffisantes";
+                result.Add((m, $"check(s) expiré(s) : {detail}"));
+                continue;
+            }
+
+            var joursIndispo = Indisponibilites
+                .Where(i => i.MembreId == m.Id)
+                .Sum(i => i.JoursChevauche(debutPeriode, finPeriode));
+
+            if (joursIndispo > joursPeriode / 2)
+            {
+                result.Add((m, $"indisponible {joursIndispo}/{joursPeriode} jours sur la période"));
+            }
+        }
+        return result;
+    }
+
     private bool EstCompetent(MembreEquipage membre)
     {
         var groupe = membre.Contrat == TypeContrat.PNT ? GroupeCheck.Cockpit : GroupeCheck.Cabine;

@@ -13,6 +13,7 @@ import { ProgrammeDetail } from './components/ProgrammeDetail';
 import { MonthlyBreakdown } from './components/MonthlyBreakdown';
 import { CollapsibleSection } from './components/CollapsibleSection';
 import { SizingResultView } from './components/SizingResultView';
+import { SolveProgressCard } from './components/SolveProgressCard';
 import { parseAlertes, parseHttpError } from './lib/parseErrors';
 import type { ResultatMarge } from '@/types/resultat';
 import type { CombinedSizingResult } from '@/types/sizing';
@@ -36,11 +37,11 @@ export function ResultatsPage() {
     activeScenarioId ?? undefined
   );
   const runCalcul = useRunCalcul();
-  const runSizing = useRunSizing();
+  const sizing = useRunSizing();
 
   const [selectedSnapshotId, setSelectedSnapshotId] = useState<string | null>(null);
   const [engine, setEngine] = useState<Engine>('marge');
-  const [sizingResult, setSizingResult] = useState<CombinedSizingResult | null>(null);
+  const sizingResult = sizing.result;
 
   // Auto-select latest snapshot
   useEffect(() => {
@@ -52,7 +53,6 @@ export function ResultatsPage() {
   // Reset selection when scenario changes
   useEffect(() => {
     setSelectedSnapshotId(null);
-    setSizingResult(null);
   }, [activeScenarioId]);
 
   const { data: snapshotDetail } = useSnapshot(selectedSnapshotId);
@@ -94,19 +94,14 @@ export function ResultatsPage() {
       runCalcul.mutate(activeScenarioId, {
         onSuccess: (data) => {
           setSelectedSnapshotId(data.id);
-          setSizingResult(null);
         },
       });
     } else {
-      runSizing.mutate(activeScenarioId, {
-        onSuccess: (data) => {
-          setSizingResult(data);
-        },
-      });
+      sizing.start(activeScenarioId);
     }
   };
 
-  const isPending = engine === 'marge' ? runCalcul.isPending : runSizing.isPending;
+  const isPending = engine === 'marge' ? runCalcul.isPending : sizing.isPending;
 
   if (!activeScenarioId) {
     return (
@@ -178,17 +173,18 @@ export function ResultatsPage() {
       {httpErrors.length > 0 && <ErrorPanel errors={httpErrors} />}
 
       {/* CP-SAT sizing error */}
-      {engine === 'cpsat' && runSizing.isError && (
-        <ErrorPanel errors={parseHttpError(runSizing.error)} />
+      {engine === 'cpsat' && sizing.isError && (
+        <ErrorPanel errors={[{ message: sizing.error ?? 'Erreur du solver' }]} />
       )}
 
       {engine === 'cpsat' ? (
         /* ────── CP-SAT Results ────── */
-        sizingResult ? (
+        sizing.isPending ? (
+          <SolveProgressCard progress={sizing.progress} isStarting={sizing.isStarting} />
+        ) : sizingResult ? (
           <SizingResultView result={sizingResult} />
         ) : (
-          !runSizing.isPending &&
-          !runSizing.isError && (
+          !sizing.isError && (
             <p className="text-muted-foreground">
               Lancez le dimensionnement CP-SAT pour calculer les effectifs PNT et PNC.
             </p>
@@ -229,12 +225,22 @@ export function ResultatsPage() {
                   icon={<Plane className="h-4 w-4" />}
                   groupe={resultat.pnt}
                   categories={[resultat.cdb, resultat.opl]}
+                  effectifTotal={
+                    resultat.effectifTotal
+                      ? resultat.effectifTotal.cdb + resultat.effectifTotal.opl
+                      : undefined
+                  }
                 />
                 <EngagementCard
                   label="PNC — Cabine"
                   icon={<Users className="h-4 w-4" />}
                   groupe={resultat.pnc}
                   categories={[resultat.cc, resultat.pncDetail]}
+                  effectifTotal={
+                    resultat.effectifTotal
+                      ? resultat.effectifTotal.cc + resultat.effectifTotal.pnc
+                      : undefined
+                  }
                 />
               </div>
 

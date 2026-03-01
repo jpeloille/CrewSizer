@@ -154,8 +154,6 @@ export function TypesAvionPage() {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-2xl font-bold text-foreground">Types avion</h2>
-
       <div className="flex items-center justify-between">
         <span className="font-data text-xs text-muted-foreground">
           {typesAvion.length} type(s) avion

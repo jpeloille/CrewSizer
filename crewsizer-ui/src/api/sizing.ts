@@ -1,9 +1,14 @@
 import apiClient from './client';
-import type { CombinedSizingResult } from '@/types/sizing';
+import type { SolveProgress } from '@/types/sizing';
 
 export const sizingApi = {
-  run: (scenarioId: string) =>
+  start: (scenarioId: string) =>
     apiClient
-      .post<CombinedSizingResult>('/sizing/run', { scenarioId })
+      .post<{ solveId: string }>('/sizing/run', { scenarioId })
+      .then((r) => r.data),
+
+  progress: (solveId: string) =>
+    apiClient
+      .get<SolveProgress>(`/sizing/progress/${solveId}`)
       .then((r) => r.data),
 };

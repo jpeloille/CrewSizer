@@ -9,8 +9,7 @@ import { ScenarioEditPage } from '@/features/scenarios/ScenarioEditPage';
 import { EquipagePage } from '@/features/equipage/EquipagePage';
 import { ProgrammePage } from '@/features/programme/ProgrammePage';
 import { ResultatsPage } from '@/features/resultats/ResultatsPage';
-import { BlocTypesPage } from '@/features/bloc-types/BlocTypesPage';
-import { TypesAvionPage } from '@/features/types-avion/TypesAvionPage';
+import { ParametresPage } from '@/features/parametres/ParametresPage';
 
 export const router = createBrowserRouter([
   {
@@ -32,8 +31,6 @@ export const router = createBrowserRouter([
       { index: true, element: <DashboardPage /> },
       { path: 'scenarios', element: <ScenarioListPage /> },
       { path: 'scenarios/:id', element: <ScenarioEditPage /> },
-      { path: 'bloc-types', element: <BlocTypesPage /> },
-      { path: 'types-avion', element: <TypesAvionPage /> },
       { path: 'equipage', element: <EquipagePage /> },
       { path: 'resultats', element: <ResultatsPage /> },
       {
@@ -43,6 +40,16 @@ export const router = createBrowserRouter([
           { path: '*', element: <ProgrammePage /> },
         ],
       },
+      {
+        path: 'parametres',
+        children: [
+          { index: true, element: <Navigate to="types-avion" replace /> },
+          { path: '*', element: <ParametresPage /> },
+        ],
+      },
+      // Redirects de compatibilite anciennes URLs
+      { path: 'bloc-types', element: <Navigate to="/parametres/bloc-types" replace /> },
+      { path: 'types-avion', element: <Navigate to="/parametres/types-avion" replace /> },
     ],
   },
 ]);

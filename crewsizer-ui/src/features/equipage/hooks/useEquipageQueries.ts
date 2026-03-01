@@ -73,3 +73,14 @@ export function useImportEquipage() {
     },
   });
 }
+
+export function useUpdateMembreRoles() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, roles }: { id: string; roles: string[] }) =>
+      equipageApi.updateMembreRoles(id, roles),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: equipageKeys.all });
+    },
+  });
+}

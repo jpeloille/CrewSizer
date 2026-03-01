@@ -1,6 +1,13 @@
 // Miroir TS de CrewSizer.Domain.Entities.ResultatMarge
 // Les tuples C# (double, bool) sont sérialisés en { item1, item2 } par System.Text.Json
 
+export interface Effectif {
+  cdb: number;
+  opl: number;
+  cc: number;
+  pnc: number;
+}
+
 export interface VerifCumul {
   item1: number; // cumul
   item2: boolean; // ok
@@ -78,6 +85,10 @@ export interface ResultatMarge {
   dateFin: string;
   libellePeriode: string;
   nbJours: number;
+
+  // Effectifs
+  effectifUtilise: Effectif;
+  effectifTotal: Effectif;
 
   // Disponibilite commune
   dDisponible: number;

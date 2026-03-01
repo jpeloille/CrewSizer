@@ -22,6 +22,7 @@ public class CrewSizerDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<AffectationEquipage> AffectationsEquipage => Set<AffectationEquipage>();
     public DbSet<DisponibiliteMembre> DisponibilitesMembre => Set<DisponibiliteMembre>();
     public DbSet<HistoriqueHDV> HistoriquesHDV => Set<HistoriqueHDV>();
+    public DbSet<AppSetting> AppSettings => Set<AppSetting>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

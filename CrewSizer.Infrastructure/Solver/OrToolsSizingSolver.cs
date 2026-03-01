@@ -21,10 +21,12 @@ namespace CrewSizer.Infrastructure.Solver;
 public sealed class OrToolsSizingSolver : ISizingSolver
 {
     private readonly ILogger<OrToolsSizingSolver> _logger;
+    private readonly SolveProgressTracker _progressTracker;
 
-    public OrToolsSizingSolver(ILogger<OrToolsSizingSolver> logger)
+    public OrToolsSizingSolver(ILogger<OrToolsSizingSolver> logger, SolveProgressTracker progressTracker)
     {
         _logger = logger;
+        _progressTracker = progressTracker;
     }
 
     public Task<SizingResult> SolveAsync(SizingRequest request, CancellationToken cancellationToken = default)
@@ -33,7 +35,7 @@ public sealed class OrToolsSizingSolver : ISizingSolver
 
         try
         {
-            var result = Solve(request);
+            var result = Solve(request, sw);
             sw.Stop();
             return Task.FromResult(result with { SolveTimeMs = sw.ElapsedMilliseconds });
         }
@@ -50,7 +52,7 @@ public sealed class OrToolsSizingSolver : ISizingSolver
         }
     }
 
-    private SizingResult Solve(SizingRequest request)
+    private SizingResult Solve(SizingRequest request, Stopwatch sw)
     {
         var model = new CpModel();
 
@@ -301,13 +303,24 @@ public sealed class OrToolsSizingSolver : ISizingSolver
         // ──────────────────────────────────────────────────
 
         var solver = new CpSolver();
-        solver.StringParameters = $"max_time_in_seconds:{request.TimeoutSeconds} num_workers:{request.NumWorkers}";
+        var effectiveWorkers = request.Deterministic ? 1 : request.NumWorkers;
+        solver.StringParameters = $"max_time_in_seconds:{request.TimeoutSeconds} num_workers:{effectiveWorkers} random_seed:0";
 
         _logger.LogDebug(
-            "Lancement CP-SAT : timeout={Timeout}s, workers={Workers}",
-            request.TimeoutSeconds, request.NumWorkers);
+            "Lancement CP-SAT : timeout={Timeout}s, workers={Workers}, deterministic={Deterministic}, solveId={SolveId}",
+            request.TimeoutSeconds, effectiveWorkers, request.Deterministic, request.SolveId);
 
-        var status = solver.Solve(model);
+        CpSolverStatus status;
+        if (request.SolveId is not null)
+        {
+            var callback = new SizingProgressCallback(
+                _progressTracker, request.SolveId, request.Category.ToString(), sw);
+            status = solver.Solve(model, callback);
+        }
+        else
+        {
+            status = solver.Solve(model);
+        }
 
         return status switch
         {
@@ -347,7 +360,7 @@ public sealed class OrToolsSizingSolver : ISizingSolver
         var usedByRank = new Dictionary<CrewRank, int>();
         var totalByRank = new Dictionary<CrewRank, int>();
 
-        foreach (var rank in crew.Select(c => c.Rank).Distinct())
+        foreach (var rank in crew.Select(c => c.Rank).Distinct().OrderBy(r => r))
         {
             var indicesOfRank = Enumerable.Range(0, crew.Count)
                 .Where(i => crew[i].Rank == rank).ToList();
@@ -367,7 +380,7 @@ public sealed class OrToolsSizingSolver : ISizingSolver
         {
             if (days[d].Blocks.Count == 0) continue;
 
-            foreach (var rank in usedByRank.Keys)
+            foreach (var rank in usedByRank.Keys.OrderBy(r => r))
             {
                 var indicesOfRank = Enumerable.Range(0, crew.Count)
                     .Where(i => crew[i].Rank == rank).ToList();
@@ -1148,7 +1161,7 @@ public sealed class OrToolsSizingSolver : ISizingSolver
             ("C14", "RDOV 2,5j vol/sem.", rdovTightness),
         };
 
-        var binding = constraints.MaxBy(x => x.Ratio);
+        var binding = constraints.OrderByDescending(x => x.Ratio).ThenBy(x => x.Code).First();
         if (binding.Ratio <= 0)
             return (null, null, null);
 

@@ -10,8 +10,11 @@ public class ResultatMarge
     public string LibellePeriode { get; set; } = "";
     public int NbJours { get; set; }
 
-    // Effectif utilisé pour le calcul
+    // Effectif utilisé pour le calcul (opérationnel : compétents + disponibles)
     public Effectif EffectifUtilise { get; set; } = new();
+
+    // Effectif total actif (avant filtrage compétences/disponibilité)
+    public Effectif EffectifTotal { get; set; } = new();
 
     // Disponibilité commune
     public int DDisponible { get; set; }

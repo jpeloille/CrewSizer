@@ -61,6 +61,18 @@ public class RunCalculHandler(IDbContextFactory<CrewSizerDbContext> dbFactory) :
         // 6. Calculer
         var resultat = CalculateurMarge.Calculer(config);
 
+        // 6a. Effectif total vs opérationnel + alertes membres non engageables
+        if (equipage != null)
+        {
+            resultat.EffectifTotal = equipage.CalculerEffectif();
+            var debut = scenario.Periode.DateDebut.ToDateTime(TimeOnly.MinValue);
+            var fin = scenario.Periode.DateFin.ToDateTime(TimeOnly.MinValue);
+            foreach (var (membre, raison) in equipage.MembresNonEngageables(debut, fin))
+            {
+                resultat.Alertes.Add($"ALERTE: {membre.Grade} {membre.Nom} non engageable — {raison}");
+            }
+        }
+
         // 6b. Ventilation par mois si la période couvre > 1 mois
         if (config.Periode.MoisCouverts().Count > 1)
             resultat.ResultatsParMois = CalculateurMarge.CalculerParMois(config);

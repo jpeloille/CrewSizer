@@ -8,6 +8,7 @@ interface EngagementCardProps {
   icon: React.ReactNode;
   groupe: ResultatGroupe;
   categories: ResultatCategorie[];
+  effectifTotal?: number;
 }
 
 function statusColor(taux: number) {
@@ -28,9 +29,10 @@ function Kpi({ label, value, sub }: { label: string; value: React.ReactNode; sub
   );
 }
 
-export function EngagementCard({ label, icon, groupe, categories }: EngagementCardProps) {
+export function EngagementCard({ label, icon, groupe, categories, effectifTotal }: EngagementCardProps) {
   const taux = Math.max(...categories.map((c) => c.tauxEngagement));
   const { color, label: statusLabel, variant } = statusColor(taux);
+  const hasReduction = effectifTotal != null && effectifTotal > groupe.effectif;
 
   return (
     <Card>
@@ -42,7 +44,15 @@ export function EngagementCard({ label, icon, groupe, categories }: EngagementCa
             <Badge className={`${variant} text-white`}>{statusLabel}</Badge>
           </div>
           <span className="text-xs text-muted-foreground">
-            {groupe.effectif} navigants actifs
+            {hasReduction ? (
+              <>
+                <span className="font-data font-semibold text-foreground">{groupe.effectif}</span>
+                {' engageables / '}
+                {effectifTotal} actifs
+              </>
+            ) : (
+              <>{groupe.effectif} navigants actifs</>
+            )}
           </span>
         </div>
       </CardHeader>
