@@ -1,0 +1,226 @@
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+/* PAS de preflight — casserait les composants DevExpress */
+@import "tailwindcss/utilities.css" layer(utilities);
+
+@theme inline {
+    --radius-sm: calc(var(--radius) - 4px);
+    --radius-md: calc(var(--radius) - 2px);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) + 4px);
+    --radius-2xl: calc(var(--radius) + 8px);
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+    --color-card: var(--card);
+    --color-card-foreground: var(--card-foreground);
+    --color-popover: var(--popover);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-primary: var(--primary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-secondary: var(--secondary);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-muted: var(--muted);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-accent: var(--accent);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-destructive: var(--destructive);
+    --color-border: var(--border);
+    --color-input: var(--input);
+    --color-ring: var(--ring);
+    --color-sidebar: var(--sidebar);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-border: var(--sidebar-border);
+    --font-sans: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+/* Tokens identiques au React UI (crewsizer-ui/src/index.css) */
+:root {
+    --radius: 0.5rem;
+    /* Navy backgrounds */
+    --background: oklch(0.16 0.02 250);
+    --foreground: oklch(0.93 0.01 240);
+    /* Cards: slightly lighter navy */
+    --card: oklch(0.20 0.025 250);
+    --card-foreground: oklch(0.93 0.01 240);
+    --popover: oklch(0.22 0.025 250);
+    --popover-foreground: oklch(0.93 0.01 240);
+    /* Primary: cyan accent */
+    --primary: oklch(0.75 0.15 195);
+    --primary-foreground: oklch(0.16 0.02 250);
+    /* Secondary */
+    --secondary: oklch(0.24 0.025 250);
+    --secondary-foreground: oklch(0.88 0.02 240);
+    /* Muted */
+    --muted: oklch(0.22 0.02 250);
+    --muted-foreground: oklch(0.65 0.02 240);
+    /* Accent */
+    --accent: oklch(0.26 0.03 250);
+    --accent-foreground: oklch(0.93 0.01 240);
+    /* Destructive */
+    --destructive: oklch(0.65 0.2 25);
+    /* Borders */
+    --border: oklch(0.30 0.025 250);
+    --input: oklch(0.28 0.025 250);
+    --ring: oklch(0.75 0.15 195);
+    /* Sidebar: darker navy */
+    --sidebar: oklch(0.13 0.025 250);
+    --sidebar-foreground: oklch(0.80 0.02 240);
+    --sidebar-primary: oklch(0.75 0.15 195);
+    --sidebar-primary-foreground: oklch(0.13 0.025 250);
+    --sidebar-accent: oklch(0.20 0.03 250);
+    --sidebar-accent-foreground: oklch(0.93 0.01 240);
+    --sidebar-border: oklch(0.25 0.025 250);
+    --sidebar-ring: oklch(0.75 0.15 195);
+}
+
+/* Scrollbar styling identique React */
+@layer base {
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: oklch(0.30 0.025 250); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: oklch(0.38 0.03 250); }
+
+    .font-data {
+        font-family: var(--font-mono);
+    }
+}
+
+/* Composants reutilisables */
+@layer components {
+    /* Card */
+    .cs-card {
+        @apply rounded-xl border border-border bg-card p-4 shadow-sm;
+    }
+
+    /* KPI tile */
+    .cs-kpi {
+        @apply rounded-xl border border-border bg-card p-4;
+    }
+    .cs-kpi-value {
+        font-family: var(--font-mono);
+        @apply text-2xl font-bold text-primary;
+    }
+    .cs-kpi-label {
+        @apply text-xs uppercase tracking-wider text-muted-foreground;
+    }
+
+    /* Badges — identiques React (statut-helpers.ts statutBadgeClasses) */
+    .badge-success {
+        @apply inline-flex items-center rounded-full border border-emerald-500/25 bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-400;
+    }
+    .badge-warning {
+        @apply inline-flex items-center rounded-full border border-amber-500/25 bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-400;
+    }
+    .badge-danger {
+        @apply inline-flex items-center rounded-full border border-red-500/25 bg-red-500/15 px-2 py-0.5 text-xs font-medium text-red-400;
+    }
+    .badge-outline {
+        @apply inline-flex items-center rounded-full border border-border bg-transparent px-2 py-0.5 text-xs font-medium text-foreground;
+    }
+    .badge-muted {
+        @apply inline-flex items-center rounded-full border border-border bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground;
+    }
+
+    /* CheckCard borders — identiques React (statut-helpers.ts statutCardClasses) */
+    .check-card-valide { @apply border-emerald-500/30 bg-emerald-500/5; }
+    .check-card-warning { @apply border-amber-500/30 bg-amber-500/5; }
+    .check-card-danger { @apply border-red-500/30 bg-red-500/5; }
+    .check-card-default { @apply border-border bg-muted/30; }
+
+    /* Alertes */
+    .cs-alert-success {
+        @apply rounded-md border border-emerald-500/30 bg-emerald-500/5 p-3 text-sm text-emerald-400;
+    }
+    .cs-alert-error {
+        @apply rounded-md border border-red-800 bg-red-900/20 p-3 text-sm text-red-400;
+    }
+    .cs-alert-warning {
+        @apply rounded-md border border-amber-800 bg-amber-900/20 p-3 text-sm text-amber-400;
+    }
+
+    /* Badge période blocs — identique React BlocsTab.tsx */
+    .badge-matin {
+        font-family: var(--font-mono);
+        @apply rounded px-2 py-0.5 text-[10px] font-semibold tracking-wide bg-amber-500/12 text-amber-500;
+    }
+    .badge-am {
+        font-family: var(--font-mono);
+        @apply rounded px-2 py-0.5 text-[10px] font-semibold tracking-wide bg-purple-500/12 text-purple-500;
+    }
+
+    /* Badge MH (vols) — identique React VolsTab.tsx */
+    .badge-mh {
+        font-family: var(--font-mono);
+        @apply inline-flex items-center rounded-full border border-amber-500/25 bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-bold text-amber-500;
+    }
+
+    /* Badge saison — identique React SemainesTab.tsx */
+    .badge-saison-haute {
+        font-family: var(--font-mono);
+        @apply inline-flex items-center rounded-full border border-amber-500/25 bg-amber-500/12 px-2 py-0.5 text-xs font-medium text-amber-500;
+    }
+    .badge-saison-basse {
+        font-family: var(--font-mono);
+        @apply inline-flex items-center rounded-full border border-primary/25 bg-primary/12 px-2 py-0.5 text-xs font-medium text-primary;
+    }
+
+    /* Input standard — equivalent shadcn/ui Input */
+    .cs-input {
+        @apply w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm text-foreground
+               outline-none transition-colors focus:border-primary;
+    }
+    .cs-input::-webkit-calendar-picker-indicator {
+        filter: invert(1);
+    }
+
+    /* Boutons — equivalents shadcn Button variants */
+    .cs-btn {
+        @apply inline-flex items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium
+               transition-colors cursor-pointer disabled:pointer-events-none disabled:opacity-50;
+    }
+    .cs-btn-sm { @apply px-3 py-1.5 text-xs; }
+    .cs-btn-primary { @apply bg-primary text-primary-foreground hover:bg-primary/90; }
+    .cs-btn-secondary { @apply border border-border bg-transparent text-foreground hover:bg-accent; }
+    .cs-btn-danger { @apply bg-destructive text-white hover:bg-destructive/90; }
+    .cs-btn-success { @apply bg-emerald-600 text-white hover:bg-emerald-600/90; }
+    .cs-btn-ghost { @apply bg-transparent text-foreground hover:bg-accent; }
+
+    /* Tabs — equivalents shadcn Tabs */
+    .cs-tab-list { @apply flex border-b border-border; }
+    .cs-tab {
+        @apply px-4 py-2 text-sm font-medium text-muted-foreground transition-colors cursor-pointer
+               hover:text-foreground border-b-2 border-transparent -mb-px;
+    }
+    .cs-tab-active { @apply text-primary border-primary; }
+
+    /* Checkbox */
+    .cs-checkbox {
+        @apply h-4 w-4 rounded border border-border bg-background text-primary accent-primary;
+    }
+
+    /* Section header — remplace DxFormLayoutGroup Caption */
+    .cs-section-title {
+        @apply mb-3 text-sm font-semibold text-foreground;
+    }
+
+    /* Tables HTML (non-DxGrid) */
+    .cs-table {
+        @apply w-full text-sm;
+        border-collapse: collapse;
+    }
+    .cs-table th {
+        @apply border-b border-border px-2 py-2 text-left font-medium text-foreground whitespace-nowrap;
+        background: oklch(0.18 0.025 250);
+    }
+    .cs-table td {
+        @apply border-b border-border px-2 py-2 whitespace-nowrap;
+    }
+    .cs-table tr:hover {
+        background: oklch(0.17 0.02 250);
+    }
+}

@@ -1,0 +1,20 @@
+# Build results
+bin/
+obj/
+
+# IDE
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Tools (binaires standalone)
+tools/
+
+# Tailwind generated output
+CrewSizer.Web/wwwroot/css/tailwind.css

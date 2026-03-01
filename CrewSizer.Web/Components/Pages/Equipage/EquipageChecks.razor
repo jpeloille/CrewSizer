@@ -1,0 +1,145 @@
+@inject IMediator Mediator
+
+<div class="flex flex-col h-full">
+    <div class="shrink-0 mb-2 flex gap-2">
+        <button class="cs-btn cs-btn-sm @(filtreGroupe is null ? "cs-btn-primary" : "cs-btn-ghost")"
+                @onclick="() => SetFiltre(null)">Tous</button>
+        <button class="cs-btn cs-btn-sm @(filtreGroupe == GroupeCheck.Cockpit ? "cs-btn-primary" : "cs-btn-ghost")"
+                @onclick="() => SetFiltre(GroupeCheck.Cockpit)">Cockpit</button>
+        <button class="cs-btn cs-btn-sm @(filtreGroupe == GroupeCheck.Cabine ? "cs-btn-primary" : "cs-btn-ghost")"
+                @onclick="() => SetFiltre(GroupeCheck.Cabine)">Cabine</button>
+    </div>
+
+    <div class="flex-1 min-h-0">
+                <DxGrid Data="checks" KeyFieldName="Id"
+                        ShowFilterRow="true"
+                        VirtualScrollingEnabled="true"
+                        RowClick="OnRowClick"
+                        CssClass="dxc-full-height">
+                    <Columns>
+                        <DxGridDataColumn FieldName="Code" Caption="Code" Width="120px" />
+                        <DxGridDataColumn FieldName="Description" Caption="Description" />
+                        <DxGridDataColumn FieldName="Groupe" Caption="Groupe" Width="80px" />
+                        <DxGridDataColumn FieldName="Primaire" Caption="Prim." Width="60px" />
+                        <DxGridDataColumn FieldName="ValiditeNombre" Caption="Validité" Width="80px">
+                            <CellDisplayTemplate>
+                                @{ var c = (DefinitionCheckDto)context.DataItem; }
+                                @(c.ValiditeNombre > 0 ? $"{c.ValiditeNombre} {c.ValiditeUnite}" : "—")
+                            </CellDisplayTemplate>
+                        </DxGridDataColumn>
+                        <DxGridDataColumn FieldName="NbMembresValides" Caption="Valides" Width="70px"
+                                          TextAlignment="GridTextAlignment.Center">
+                            <CellDisplayTemplate>
+                                @{ var cv = (DefinitionCheckDto)context.DataItem; }
+                                @if (cv.NbMembresValides > 0)
+                                {
+                                    <span class="badge-success">@cv.NbMembresValides</span>
+                                }
+                            </CellDisplayTemplate>
+                        </DxGridDataColumn>
+                        <DxGridDataColumn FieldName="NbMembresAvertissement" Caption="Avert." Width="70px"
+                                          TextAlignment="GridTextAlignment.Center">
+                            <CellDisplayTemplate>
+                                @{ var ca = (DefinitionCheckDto)context.DataItem; }
+                                @if (ca.NbMembresAvertissement > 0)
+                                {
+                                    <span class="badge-warning">@ca.NbMembresAvertissement</span>
+                                }
+                            </CellDisplayTemplate>
+                        </DxGridDataColumn>
+                        <DxGridDataColumn FieldName="NbMembresExpires" Caption="Expirés" Width="70px"
+                                          TextAlignment="GridTextAlignment.Center">
+                            <CellDisplayTemplate>
+                                @{ var ce = (DefinitionCheckDto)context.DataItem; }
+                                @if (ce.NbMembresExpires > 0)
+                                {
+                                    <span class="badge-danger">@ce.NbMembresExpires</span>
+                                }
+                            </CellDisplayTemplate>
+                        </DxGridDataColumn>
+                        <DxGridDataColumn FieldName="NbMembresTotal" Caption="Total" Width="60px"
+                                          TextAlignment="GridTextAlignment.Center" />
+                    </Columns>
+                </DxGrid>
+    </div>
+</div>
+
+@* Popup détail membres pour un check *@
+<DxPopup @bind-Visible="popupVisible" HeaderText="@popupTitle"
+         Width="700px" CloseOnOutsideClick="true">
+    <BodyContentTemplate Context="popupCtx">
+        @if (membresPourCheck is not null)
+        {
+            <DxGrid Data="membresPourCheck" KeyFieldName="MembreId" PageSize="25" PagerVisible="true">
+                <Columns>
+                    <DxGridDataColumn FieldName="MembreCode" Caption="Code" Width="80px" />
+                    <DxGridDataColumn FieldName="MembreNom" Caption="Nom" />
+                    <DxGridDataColumn FieldName="Grade" Caption="Grade" Width="70px" />
+                    <DxGridDataColumn FieldName="Statut" Caption="Statut" Width="100px">
+                        <CellDisplayTemplate>
+                            @{ var s = (StatutCheck)context.Value; }
+                            <span class="@StatutBadgeCss(s)">@StatutLabel(s)</span>
+                        </CellDisplayTemplate>
+                    </DxGridDataColumn>
+                    <DxGridDataColumn FieldName="DateExpiration" Caption="Expiration" Width="110px" DisplayFormat="dd/MM/yyyy" />
+                    <DxGridDataColumn FieldName="JoursRestants" Caption="Jours" Width="70px"
+                                      TextAlignment="GridTextAlignment.Center" />
+                </Columns>
+            </DxGrid>
+        }
+    </BodyContentTemplate>
+</DxPopup>
+
+@code {
+    List<DefinitionCheckDto> checks = [];
+    GroupeCheck? filtreGroupe;
+    bool popupVisible;
+    string popupTitle = "";
+    List<AlerteQualificationDto>? membresPourCheck;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadChecks();
+    }
+
+    async Task SetFiltre(GroupeCheck? groupe)
+    {
+        filtreGroupe = groupe;
+        await LoadChecks();
+    }
+
+    async Task LoadChecks()
+    {
+        checks = await Mediator.Send(new GetDefinitionsCheckQuery(filtreGroupe));
+    }
+
+    async Task OnRowClick(GridRowClickEventArgs e)
+    {
+        if (e.Grid.GetDataItem(e.VisibleIndex) is DefinitionCheckDto check)
+            await ShowMembresPourCheck(check);
+    }
+
+    async Task ShowMembresPourCheck(DefinitionCheckDto check)
+    {
+        popupTitle = $"{check.Code} — {check.Description}";
+        membresPourCheck = await Mediator.Send(new GetMembresPourCheckQuery(check.Code));
+        popupVisible = true;
+    }
+
+    static string StatutBadgeCss(StatutCheck statut) => statut switch
+    {
+        StatutCheck.Valide => "badge-success",
+        StatutCheck.ExpirationProche or StatutCheck.Avertissement => "badge-warning",
+        StatutCheck.Expire => "badge-danger",
+        _ => ""
+    };
+
+    static string StatutLabel(StatutCheck statut) => statut switch
+    {
+        StatutCheck.Valide => "Valide",
+        StatutCheck.ExpirationProche => "Proche",
+        StatutCheck.Avertissement => "Avert.",
+        StatutCheck.Expire => "Expiré",
+        _ => "N/A"
+    };
+}

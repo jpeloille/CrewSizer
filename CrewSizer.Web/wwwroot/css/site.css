@@ -1,0 +1,77 @@
+html, body {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    margin: 0;
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+}
+
+/* Blazor EditForm validation */
+.valid.modified:not([type=checkbox]) {
+    outline: 1px solid var(--dxds-color-border-success-default-rest);
+}
+.invalid {
+    outline: 1px solid var(--dxds-color-border-danger-default-rest);
+}
+.validation-message {
+    color: var(--dxds-color-content-danger-default-rest);
+}
+
+/* Viewport-fill layout utilities */
+.page-fill {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
+.page-fill > h3 {
+    flex-shrink: 0;
+    margin-bottom: 0.5rem !important;
+}
+.grid-fill {
+    flex: 1;
+    min-height: 0;
+}
+.scroll-fill {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+}
+
+/* Hauteur 100% pour composants DevExpress (CssClass) — ticket T1178238 */
+.dxc-full-height {
+    height: 100% !important;
+}
+
+/* DxTabs top : forcer flex column + 100% via CSS variables internes DevExpress */
+.dxc-full-height.dxbl-tabs.dxbl-tabs-top {
+    --dxbl-tabs-display: flex;
+    --dxbl-tabs-flex-direction: column;
+    --dxbl-tabs-height: 100%;
+}
+
+/* Content panel : flex COLUMN (défaut DevExpress = row!), remplit l'espace après les headers */
+.dxc-full-height.dxbl-tabs > .dxbl-tabs-content-panel {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+}
+
+/* Content wrapper : flex column, remplit le panel */
+.dxc-full-height.dxbl-tabs > .dxbl-tabs-content-panel > .dxbl-tabs-content {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+}
+
+/* Tab pane : remplit tout l'espace */
+.dxc-full-height.dxbl-tabs > .dxbl-tabs-content-panel > .dxbl-tabs-content > * {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+}

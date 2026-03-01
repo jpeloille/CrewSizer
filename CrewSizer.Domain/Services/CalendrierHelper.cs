@@ -1,0 +1,127 @@
+using System.Globalization;
+using CrewSizer.Domain.Entities;
+
+namespace CrewSizer.Domain.Services;
+
+public static class CalendrierHelper
+{
+    /// <summary>Convertit un nom de mois français en numéro 1-12 (0 si inconnu)</summary>
+    public static int MoisVersNumero(string mois) => mois.ToLowerInvariant() switch
+    {
+        "janvier" => 1,
+        "février" or "fevrier" => 2,
+        "mars" => 3,
+        "avril" => 4,
+        "mai" => 5,
+        "juin" => 6,
+        "juillet" => 7,
+        "août" or "aout" => 8,
+        "septembre" => 9,
+        "octobre" => 10,
+        "novembre" => 11,
+        "décembre" or "decembre" => 12,
+        _ => 0
+    };
+
+    /// <summary>Retourne les semaines ISO dont le lundi tombe dans le mois donné</summary>
+    public static List<(int semaine, int annee)> GetSemainesDuMois(string mois, int annee)
+    {
+        int moisNum = MoisVersNumero(mois);
+        if (moisNum == 0) return [];
+
+        var result = new List<(int, int)>();
+        int nbJours = DateTime.DaysInMonth(annee, moisNum);
+
+        for (int jour = 1; jour <= nbJours; jour++)
+        {
+            var date = new DateTime(annee, moisNum, jour);
+            if (date.DayOfWeek == DayOfWeek.Monday)
+            {
+                int semIso = ISOWeek.GetWeekOfYear(date);
+                int anneeIso = ISOWeek.GetYear(date);
+                result.Add((semIso, anneeIso));
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>Retourne les semaines ISO dont le lundi tombe dans la plage [debut, fin]</summary>
+    public static List<(int semaine, int annee)> GetSemainesDuPeriode(DateOnly debut, DateOnly fin)
+    {
+        var result = new List<(int, int)>();
+        var current = debut;
+        // Avancer au premier lundi
+        while (current.DayOfWeek != DayOfWeek.Monday && current <= fin)
+            current = current.AddDays(1);
+        // Itérer lundi par lundi
+        while (current <= fin)
+        {
+            int semIso = ISOWeek.GetWeekOfYear(current.ToDateTime(TimeOnly.MinValue));
+            int anneeIso = ISOWeek.GetYear(current.ToDateTime(TimeOnly.MinValue));
+            result.Add((semIso, anneeIso));
+            current = current.AddDays(7);
+        }
+        return result;
+    }
+
+    /// <summary>Résout le programme pour la période : collecte les blocs des semaines assignées</summary>
+    public static List<BlocVol> ResoudreProgramme(
+        Configuration config,
+        out int nbSemaines,
+        out double semainesMois)
+    {
+        var semainesDuMois = GetSemainesDuPeriode(config.Periode.DateDebut, config.Periode.DateFin);
+        nbSemaines = semainesDuMois.Count;
+        semainesMois = nbSemaines;
+
+        var blocs = new List<BlocVol>();
+        var stById = config.SemainesTypes.ToDictionary(st => st.Id);
+        var blocsDict = config.CatalogueBlocs.ToDictionary(b => b.Id);
+
+        foreach (var (semaine, annee) in semainesDuMois)
+        {
+            var affectation = config.Calendrier
+                .FirstOrDefault(a => a.Semaine == semaine && a.Annee == annee);
+
+            if (affectation == null) continue;
+
+            if (!stById.TryGetValue(affectation.SemaineTypeId, out var st))
+                continue;
+
+            foreach (var placement in st.Placements
+                         .OrderBy(p => HeureHelper.JourVersIndex(p.Jour))
+                         .ThenBy(p => p.Sequence))
+            {
+                if (!blocsDict.TryGetValue(placement.BlocId, out var blocTemplate))
+                    continue;
+
+                blocs.Add(new BlocVol
+                {
+                    Id = blocTemplate.Id,
+                    Code = blocTemplate.Code,
+                    Periode = blocTemplate.Periode,
+                    DebutDP = blocTemplate.DebutDP,
+                    FinDP = blocTemplate.FinDP,
+                    DebutFDP = blocTemplate.DebutFDP,
+                    FinFDP = blocTemplate.FinFDP,
+                    Etapes = blocTemplate.Etapes,
+                    Vols = blocTemplate.Vols,
+                    Jour = placement.Jour,
+                    Sequence = placement.Sequence,
+                    BlocTypeId = blocTemplate.BlocTypeId,
+                    TypeAvionId = blocTemplate.TypeAvionId,
+                    TypeAvion = blocTemplate.TypeAvion
+                });
+            }
+        }
+
+        return blocs;
+    }
+
+    /// <summary>Retourne les blocs uniques du catalogue pour vérifications TSV</summary>
+    public static List<BlocVol> BlocsUniques(Configuration config)
+    {
+        return config.CatalogueBlocs.ToList();
+    }
+}

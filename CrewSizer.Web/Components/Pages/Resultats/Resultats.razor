@@ -1,0 +1,440 @@
+@page "/resultats"
+@inject IMediator Mediator
+@inject ActiveScenarioService ActiveScenario
+@using System.Text.Json
+@using CrewSizer.Domain.Entities
+
+<PageTitle>Résultats — CrewSizer</PageTitle>
+
+<div class="flex flex-col h-full">
+    <div class="shrink-0">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-2xl font-bold text-foreground">Resultats</h3>
+                    <div class="flex items-center gap-3">
+                        @if (snapshots.Count > 0)
+                        {
+                            <DxComboBox TData="CalculSnapshotListItemDto" TValue="Guid?"
+                                        Data="snapshots"
+                                        Value="selectedSnapshotId"
+                                        ValueChanged="OnSnapshotChanged"
+                                        ValueFieldName="Id"
+                                        NullText="Sélectionner un calcul..."
+                                        ClearButtonDisplayMode="DataEditorClearButtonDisplayMode.Auto"
+                                        CssClass="w-[400px]">
+                                <DxListEditorColumn FieldName="DateCalcul" Caption="Date" DisplayFormat="dd/MM/yyyy HH:mm" Width="150px" />
+                                <DxListEditorColumn FieldName="TauxEngagementGlobal" Caption="Taux" DisplayFormat="P1" Width="80px" />
+                                <DxListEditorColumn FieldName="StatutGlobal" Caption="Statut" Width="120px" />
+                                <DxListEditorColumn FieldName="CategorieContraignante" Caption="Contrainte" />
+                            </DxComboBox>
+                        }
+                        <button class="cs-btn cs-btn-success" @onclick="RunCalcul"
+                                disabled="@(isCalculating || !ActiveScenario.HasScenario)">
+                            @(isCalculating ? "Calcul en cours..." : "Lancer un calcul")
+                        </button>
+                    </div>
+                </div>
+                @if (resultat is not null)
+                {
+                    <p class="mb-3 text-sm text-muted-foreground">
+                        Periode : @resultat.LibellePeriode (@resultat.NbJours jours)
+                    </p>
+                }
+    </div>
+
+        @if (resultat is not null && snapshot is not null)
+        {
+    <div class="flex-1 min-h-0 flex flex-col">
+        <div class="cs-tab-list shrink-0">
+            <button class="cs-tab @(resultatTab == 0 ? "cs-tab-active" : "")" @onclick="() => resultatTab = 0">Synthèse</button>
+            <button class="cs-tab @(resultatTab == 1 ? "cs-tab-active" : "")" @onclick="() => resultatTab = 1">Capacité PNT</button>
+            <button class="cs-tab @(resultatTab == 2 ? "cs-tab-active" : "")" @onclick="() => resultatTab = 2">Capacité PNC</button>
+            <button class="cs-tab @(resultatTab == 3 ? "cs-tab-active" : "")" @onclick="() => resultatTab = 3">Programme</button>
+            <button class="cs-tab @(resultatTab == 4 ? "cs-tab-active" : "")" @onclick="() => resultatTab = 4">Vérifications FTL</button>
+            <button class="cs-tab @(resultatTab == 5 ? "cs-tab-active" : "")" @onclick="() => resultatTab = 5">Alertes</button>
+        </div>
+        <div class="flex-1 min-h-0 overflow-auto">
+                        @* Onglet 1 : Synthèse *@
+            @if (resultatTab == 0)
+            {
+                            <div class="p-4">
+                                <div class="mb-6 flex flex-wrap gap-4">
+                                    <div class="cs-kpi min-w-[140px]">
+                                        <div class="cs-kpi-label">Taux d'engagement</div>
+                                        <div class="mt-1">
+                                            <span class="@BadgeCss(resultat.TauxEngagementGlobal)">
+                                                @(resultat.TauxEngagementGlobal.ToString("P1"))
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div class="cs-kpi min-w-[140px]">
+                                        <div class="cs-kpi-label">Statut</div>
+                                        <div class="cs-kpi-value">@resultat.StatutGlobal</div>
+                                    </div>
+                                    <div class="cs-kpi min-w-[140px]">
+                                        <div class="cs-kpi-label">Catégorie contraignante</div>
+                                        <div class="cs-kpi-value">@resultat.CategorieContraignante</div>
+                                    </div>
+                                    <div class="cs-kpi min-w-[140px]">
+                                        <div class="cs-kpi-label">Total blocs</div>
+                                        <div class="cs-kpi-value">@resultat.TotalBlocs</div>
+                                    </div>
+                                    <div class="cs-kpi min-w-[140px]">
+                                        <div class="cs-kpi-label">Total HDV</div>
+                                        <div class="cs-kpi-value">@(resultat.TotalHDV.ToString("N1"))h</div>
+                                    </div>
+                                    <div class="cs-kpi min-w-[140px]">
+                                        <div class="cs-kpi-label">Rotations</div>
+                                        <div class="cs-kpi-value">@resultat.Rotations</div>
+                                    </div>
+                                </div>
+
+                                <h5 class="mb-2 font-semibold text-foreground">Résumé par groupe</h5>
+                                <table class="cs-table mb-4">
+                                    <thead>
+                                        <tr>
+                                            <th>Groupe</th>
+                                            <th>Effectif</th>
+                                            <th>Capacité brute</th>
+                                            <th>Capacité nette</th>
+                                            <th>Alpha</th>
+                                            <th>Contrainte</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td><strong>PNT</strong></td>
+                                            <td>@resultat.PNT.Effectif</td>
+                                            <td>@resultat.PNT.CapaciteBrute</td>
+                                            <td>@resultat.PNT.CapaciteNette</td>
+                                            <td>@resultat.PNT.Alpha.ToString("N2")</td>
+                                            <td>@resultat.PNT.ContrainteMordante</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>PNC</strong></td>
+                                            <td>@resultat.PNC.Effectif</td>
+                                            <td>@resultat.PNC.CapaciteBrute</td>
+                                            <td>@resultat.PNC.CapaciteNette</td>
+                                            <td>@resultat.PNC.Alpha.ToString("N2")</td>
+                                            <td>@resultat.PNC.ContrainteMordante</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+
+                                <h5 class="mb-2 mt-4 font-semibold text-foreground">Sous-catégories</h5>
+                                <table class="cs-table">
+                                    <thead>
+                                        <tr><th>Catégorie</th><th>Effectif</th><th>Capacité</th><th>Besoin</th><th>Marge</th><th>Taux</th><th>Statut</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var cat in new[] { resultat.CDB, resultat.OPL, resultat.CC, resultat.PNCDetail })
+                                        {
+                                            <tr>
+                                                <td><strong>@cat.Nom</strong></td>
+                                                <td>@cat.Effectif</td>
+                                                <td>@cat.Capacite.ToString("N1")</td>
+                                                <td>@cat.Besoin</td>
+                                                <td>@cat.Marge.ToString("N1")</td>
+                                                <td><span class="@BadgeCss(cat.TauxEngagement)">@(cat.TauxEngagement.ToString("P1"))</span></td>
+                                                <td>@cat.Statut</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+            }
+
+            @if (resultatTab == 1)
+            {
+                        @* Onglet 2 : Capacité PNT *@
+                            <div class="p-4">
+                                @RenderGroupeDetail(resultat.PNT, resultat.CDB, resultat.OPL)
+                            </div>
+            }
+
+            @if (resultatTab == 2)
+            {
+                        @* Onglet 3 : Capacité PNC *@
+                            <div class="p-4">
+                                @RenderGroupeDetail(resultat.PNC, resultat.CC, resultat.PNCDetail)
+                            </div>
+            }
+
+            @if (resultatTab == 3)
+            {
+                        @* Onglet 4 : Programme *@
+                            <div class="p-4">
+                                @if (resultat.DetailProgramme.Count > 0)
+                                {
+                                    <table class="cs-table mb-4">
+                                        <thead>
+                                            <tr><th>Semaine Type</th><th>Blocs</th><th>HDV (h)</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var dp in resultat.DetailProgramme)
+                                            {
+                                                <tr>
+                                                    <td>@dp.nom</td>
+                                                    <td>@dp.blocs</td>
+                                                    <td>@dp.hdv.ToString("N2")</td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                }
+
+                                @if (resultat.ResumeSemaine.Count > 0)
+                                {
+                                    <h6 class="mb-2 mt-4 font-semibold text-foreground">Résumé par jour de semaine</h6>
+                                    <table class="cs-table">
+                                        <thead>
+                                            <tr><th>Jour</th><th>Blocs</th><th>HDV (h)</th><th>TS (h)</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var rs in resultat.ResumeSemaine)
+                                            {
+                                                <tr>
+                                                    <td>@rs.JourNom</td>
+                                                    <td>@rs.NbBlocs</td>
+                                                    <td>@rs.Hdv.ToString("N2")</td>
+                                                    <td>@rs.Ts.ToString("N2")</td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                }
+                            </div>
+            }
+
+            @if (resultatTab == 4)
+            {
+                        @* Onglet 5 : Vérifications FTL *@
+                            <div class="p-4">
+                                <h6 class="mb-2 font-semibold text-foreground">Conformité TSV par bloc</h6>
+                                <p class="mb-2">
+                                    Tous conformes :
+                                    @if (resultat.TousBlocsConformesTSV)
+                                    {
+                                        <span class="font-semibold text-green-400">Oui</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="font-semibold text-red-400">Non</span>
+                                    }
+                                </p>
+                                @if (resultat.VerificationsTSV.Count > 0)
+                                {
+                                    <table class="cs-table mb-4">
+                                        <thead>
+                                            <tr><th>Bloc</th><th>Jour</th><th>Étapes</th><th>TSV (h)</th><th>Max (h)</th><th>OK</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var v in resultat.VerificationsTSV)
+                                            {
+                                                <tr class="@(!v.Conforme ? "bg-red-900/20" : "")">
+                                                    <td>@v.Nom</td>
+                                                    <td>@v.JourNom</td>
+                                                    <td>@v.NbEtapes</td>
+                                                    <td>@v.TsvDuree.ToString("N2")</td>
+                                                    <td>@v.TsvMaxAutorise.ToString("N2")</td>
+                                                    <td>@(v.Conforme ? "OK" : "NON")</td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                }
+
+                                <h6 class="mb-2 mt-4 font-semibold text-foreground">Temps de service — PNT</h6>
+                                @RenderVerifTS(resultat.VerifTempsServicePNT)
+
+                                <h6 class="mb-2 mt-4 font-semibold text-foreground">Temps de service — PNC</h6>
+                                @RenderVerifTS(resultat.VerifTempsServicePNC)
+                            </div>
+            }
+
+            @if (resultatTab == 5)
+            {
+                        @* Onglet 6 : Alertes *@
+                            <div class="p-4">
+                                @if (resultat.Alertes.Count > 0)
+                                {
+                                    <ul class="list-disc space-y-1 pl-5">
+                                        @foreach (var alerte in resultat.Alertes)
+                                        {
+                                            @if (alerte.Contains("CRITIQUE") || alerte.Contains("DÉPASSEMENT"))
+                                            {
+                                                <li class="font-semibold text-red-400">@alerte</li>
+                                            }
+                                            else
+                                            {
+                                                <li>@alerte</li>
+                                            }
+                                        }
+                                    </ul>
+                                }
+                                else
+                                {
+                                    <p class="text-green-400">Aucune alerte.</p>
+                                }
+                            </div>
+            }
+        </div>
+    </div>
+        }
+        else if (snapshots.Count == 0)
+        {
+    <div class="shrink-0">
+                    <p class="text-muted-foreground">Aucun calcul disponible. Effectuez un calcul depuis la page scénario.</p>
+    </div>
+        }
+</div>
+
+@code {
+    static readonly JsonSerializerOptions JsonOptions = new() { IncludeFields = true };
+
+    List<CalculSnapshotListItemDto> snapshots = [];
+    Guid? selectedSnapshotId;
+    CalculSnapshotDto? snapshot;
+    ResultatMarge? resultat;
+    bool isCalculating;
+    int resultatTab;
+
+    protected override async Task OnInitializedAsync()
+    {
+        snapshots = await Mediator.Send(new GetAllSnapshotsQuery(ActiveScenario.ScenarioId));
+        var latest = snapshots.OrderByDescending(s => s.DateCalcul).FirstOrDefault();
+        if (latest is not null)
+        {
+            selectedSnapshotId = latest.Id;
+            await LoadSnapshot(latest.Id);
+        }
+    }
+
+    async Task OnSnapshotChanged(Guid? id)
+    {
+        selectedSnapshotId = id;
+        if (id.HasValue)
+            await LoadSnapshot(id.Value);
+        else
+        {
+            snapshot = null;
+            resultat = null;
+        }
+    }
+
+    async Task LoadSnapshot(Guid id)
+    {
+        snapshot = await Mediator.Send(new GetSnapshotQuery(id));
+        if (snapshot is not null && !string.IsNullOrEmpty(snapshot.ResultatJson))
+        {
+            try
+            {
+                resultat = JsonSerializer.Deserialize<ResultatMarge>(snapshot.ResultatJson, JsonOptions);
+            }
+            catch
+            {
+                resultat = null;
+            }
+        }
+    }
+
+    async Task RunCalcul()
+    {
+        if (!ActiveScenario.HasScenario || isCalculating) return;
+        isCalculating = true;
+        try
+        {
+            var result = await Mediator.Send(new RunCalculCommand(ActiveScenario.ScenarioId!.Value));
+            // Recharger les snapshots et selectionner le nouveau
+            snapshots = await Mediator.Send(new GetAllSnapshotsQuery(ActiveScenario.ScenarioId));
+            selectedSnapshotId = result.Id;
+            await LoadSnapshot(result.Id);
+        }
+        catch
+        {
+            // Silently ignore — error handling can be added later
+        }
+        finally
+        {
+            isCalculating = false;
+        }
+    }
+
+    RenderFragment RenderGroupeDetail(ResultatGroupe groupe, ResultatCategorie cat1, ResultatCategorie cat2) => __builder =>
+    {
+        <table class="cs-table mb-4">
+            <tbody>
+                <tr><td>Nom</td><td><strong>@groupe.Nom</strong></td></tr>
+                <tr><td>Effectif</td><td>@groupe.Effectif</td></tr>
+                <tr><td>Capacité brute (jours)</td><td>@groupe.CapaciteBrute</td></tr>
+                <tr><td>Abattements</td><td>@groupe.TotalAbattements</td></tr>
+                <tr><td>Jours sol</td><td>@groupe.TotalJoursSol</td></tr>
+                <tr><td>Capacité nette (jours)</td><td><strong>@groupe.CapaciteNette</strong></td></tr>
+                <tr><td>Alpha (coeff activité)</td><td>@groupe.Alpha.ToString("N3")</td></tr>
+                <tr><td>H max (cumul contraignant)</td><td>@groupe.HMax.ToString("N1")h</td></tr>
+                <tr><td>Contrainte mordante</td><td>@groupe.ContrainteMordante</td></tr>
+                <tr><td>Capacité nette HDV</td><td>@groupe.CapaciteNetteHDV.ToString("N1")h</td></tr>
+                <tr><td>HDV par personne</td><td>@groupe.HdvParPersonne.ToString("N1")h</td></tr>
+            </tbody>
+        </table>
+
+        <h6 class="mb-2 mt-4 font-semibold text-foreground">Vérification butées cumulatives</h6>
+        <table class="cs-table mb-4">
+            <thead><tr><th>Butée</th><th>Cumul</th><th>OK</th></tr></thead>
+            <tbody>
+                <tr class="@(!groupe.Verif28j.ok ? "bg-red-900/20" : "")">
+                    <td>28 jours</td><td>@groupe.Verif28j.cumul.ToString("N1")h</td><td>@(groupe.Verif28j.ok ? "OK" : "NON")</td>
+                </tr>
+                <tr class="@(!groupe.Verif90j.ok ? "bg-red-900/20" : "")">
+                    <td>90 jours</td><td>@groupe.Verif90j.cumul.ToString("N1")h</td><td>@(groupe.Verif90j.ok ? "OK" : "NON")</td>
+                </tr>
+                <tr class="@(!groupe.Verif12m.ok ? "bg-red-900/20" : "")">
+                    <td>12 mois</td><td>@groupe.Verif12m.cumul.ToString("N1")h</td><td>@(groupe.Verif12m.ok ? "OK" : "NON")</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h6 class="mb-2 mt-4 font-semibold text-foreground">Sous-catégories</h6>
+        <table class="cs-table">
+            <thead><tr><th>Catégorie</th><th>Effectif</th><th>Capacité</th><th>Besoin</th><th>Marge</th><th>Taux</th><th>Statut</th></tr></thead>
+            <tbody>
+                @foreach (var cat in new[] { cat1, cat2 })
+                {
+                    <tr>
+                        <td><strong>@cat.Nom</strong></td>
+                        <td>@cat.Effectif</td>
+                        <td>@cat.Capacite.ToString("N1")</td>
+                        <td>@cat.Besoin</td>
+                        <td>@cat.Marge.ToString("N1")</td>
+                        <td><span class="@BadgeCss(cat.TauxEngagement)">@(cat.TauxEngagement.ToString("P1"))</span></td>
+                        <td>@cat.Statut</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    };
+
+    RenderFragment RenderVerifTS(VerifTempsService verif) => __builder =>
+    {
+        <table class="cs-table mb-4">
+            <thead><tr><th>Limite</th><th>Valeur</th><th>Limite max</th><th>OK</th></tr></thead>
+            <tbody>
+                <tr class="@(!verif.Verif7j.ok ? "bg-red-900/20" : "")">
+                    <td>7 jours</td><td>@verif.Verif7j.valeur.ToString("N1")h</td><td>@verif.Verif7j.limite.ToString("N1")h</td><td>@(verif.Verif7j.ok ? "OK" : "NON")</td>
+                </tr>
+                <tr class="@(!verif.Verif14j.ok ? "bg-red-900/20" : "")">
+                    <td>14 jours</td><td>@verif.Verif14j.valeur.ToString("N1")h</td><td>@verif.Verif14j.limite.ToString("N1")h</td><td>@(verif.Verif14j.ok ? "OK" : "NON")</td>
+                </tr>
+                <tr class="@(!verif.Verif28j.ok ? "bg-red-900/20" : "")">
+                    <td>28 jours</td><td>@verif.Verif28j.valeur.ToString("N1")h</td><td>@verif.Verif28j.limite.ToString("N1")h</td><td>@(verif.Verif28j.ok ? "OK" : "NON")</td>
+                </tr>
+            </tbody>
+        </table>
+    };
+
+    static string BadgeCss(double taux)
+    {
+        if (taux < 0.85) return "badge-success";
+        if (taux < 0.95) return "badge-warning";
+        return "badge-danger";
+    }
+}

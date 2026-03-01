@@ -1,0 +1,78 @@
+@inject NavigationManager Nav
+@inject IMediator Mediator
+@inject ActiveScenarioService ActiveScenario
+
+@if (loaded)
+{
+<div class="mb-5 flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card p-3.5">
+    @{ var stepDefs = GetSteps(); }
+    @for (int i = 0; i < stepDefs.Length; i++)
+    {
+        var step = stepDefs[i];
+        var isActive = step.Key == ActiveStep;
+
+        @if (i > 0)
+        {
+            <svg class="h-3 w-3 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+        }
+
+        <button @onclick="() => OnStepClick(step.Key)"
+                class="@StepCss(isActive)">
+            <span class="@NumCss(isActive)">@(i + 1)</span>
+            <span>@step.Label</span>
+            <span class="font-data text-xs text-muted-foreground">(@step.Count)</span>
+        </button>
+    }
+</div>
+}
+
+@code {
+    [Parameter] public string ActiveStep { get; set; } = "vols";
+
+    int volsCount, blocsCount, semainesCount;
+    bool loaded;
+
+    record StepInfo(string Key, string Label, string Count);
+
+    protected override async Task OnInitializedAsync()
+    {
+        var vols = await Mediator.Send(new GetAllVolsQuery());
+        var blocs = await Mediator.Send(new GetAllBlocsVolQuery());
+        var semaines = await Mediator.Send(new GetAllSemainesTypesQuery());
+        volsCount = vols.Count;
+        blocsCount = blocs.Count;
+        semainesCount = semaines.Count;
+        loaded = true;
+    }
+
+    StepInfo[] GetSteps() =>
+    [
+        new("vols", "Catalogue Vols", volsCount.ToString()),
+        new("blocs", "Blocs de Vols", blocsCount.ToString()),
+        new("semaines", "Semaines Types", semainesCount.ToString()),
+        new("calendrier", "Calendrier", "52 sem."),
+    ];
+
+    void OnStepClick(string key)
+    {
+        if (key == "calendrier" && ActiveScenario.HasScenario)
+        {
+            // Le calendrier est dans l'onglet Calendrier de ScenarioEdit
+            Nav.NavigateTo($"/scenario/{ActiveScenario.ScenarioId}");
+        }
+        else
+        {
+            Nav.NavigateTo($"/programme/{key}");
+        }
+    }
+
+    static string StepCss(bool active) =>
+        "flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-semibold transition-colors hover:bg-accent " +
+        (active ? "border-primary/30 bg-primary/8 text-primary" : "border-transparent");
+
+    static string NumCss(bool active) =>
+        "flex h-5 w-5 items-center justify-center rounded-full font-data text-[10px] font-bold " +
+        (active ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground");
+}

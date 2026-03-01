@@ -1,0 +1,112 @@
+@inject IMediator Mediator
+
+<div class="my-4">
+    <p>Importez les fichiers XML APM (Air Calédonie Crew Management System) :</p>
+
+    <div class="grid grid-cols-2 gap-4">
+        <div class="space-y-2">
+            <label class="text-sm font-medium text-foreground">PNT Crew List</label>
+            <InputFile OnChange="e => filePnt = e.File" accept=".xml" />
+        </div>
+        <div class="space-y-2">
+            <label class="text-sm font-medium text-foreground">PNC Crew List</label>
+            <InputFile OnChange="e => filePnc = e.File" accept=".xml" />
+        </div>
+        <div class="space-y-2">
+            <label class="text-sm font-medium text-foreground">Check Status</label>
+            <InputFile OnChange="e => fileCheckStatus = e.File" accept=".xml" />
+        </div>
+        <div class="space-y-2">
+            <label class="text-sm font-medium text-foreground">Check Description</label>
+            <InputFile OnChange="e => fileCheckDesc = e.File" accept=".xml" />
+        </div>
+    </div>
+
+    <button class="cs-btn cs-btn-primary mt-3" @onclick="DoImport"
+            disabled="@(importing || (filePnt is null && filePnc is null))">Importer</button>
+
+    @if (importing)
+    {
+        <span class="ml-2 text-muted-foreground">Import en cours...</span>
+    }
+
+    @if (importResult is not null)
+    {
+        <div class="cs-alert-success mt-4">
+            <p><strong>Import réussi</strong></p>
+            <p>@importResult.NbMembresImportes membres importés, @importResult.NbChecksImportes checks</p>
+            <p>Date extraction : @importResult.DateExtraction.ToString("dd/MM/yyyy")</p>
+            @if (importResult.Avertissements.Count > 0)
+            {
+                <p class="text-amber-400">Avertissements :</p>
+                <ul>
+                    @foreach (var w in importResult.Avertissements)
+                    {
+                        <li>@w</li>
+                    }
+                </ul>
+            }
+        </div>
+    }
+
+    @if (importError is not null)
+    {
+        <div class="cs-alert-error mt-4">
+            @importError
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public EventCallback OnImportComplete { get; set; }
+
+    IBrowserFile? filePnt;
+    IBrowserFile? filePnc;
+    IBrowserFile? fileCheckStatus;
+    IBrowserFile? fileCheckDesc;
+    ImportEquipageResultDto? importResult;
+    string? importError;
+    bool importing;
+
+    static async Task<MemoryStream?> CopyToMemoryStream(IBrowserFile? file)
+    {
+        if (file is null) return null;
+        var ms = new MemoryStream();
+        await using var src = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+        await src.CopyToAsync(ms);
+        ms.Position = 0;
+        return ms;
+    }
+
+    async Task DoImport()
+    {
+        try
+        {
+            importing = true;
+            importError = null;
+            importResult = null;
+
+            var streamPnt = await CopyToMemoryStream(filePnt);
+            var streamPnc = await CopyToMemoryStream(filePnc);
+            var streamCheck = await CopyToMemoryStream(fileCheckStatus);
+            var streamDesc = await CopyToMemoryStream(fileCheckDesc);
+
+            importResult = await Mediator.Send(new ImportEquipageCommand(streamPnt, streamPnc, streamCheck, streamDesc));
+
+            filePnt = null;
+            filePnc = null;
+            fileCheckStatus = null;
+            fileCheckDesc = null;
+
+            await OnImportComplete.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            importError = ex.Message;
+        }
+        finally
+        {
+            importing = false;
+        }
+    }
+}

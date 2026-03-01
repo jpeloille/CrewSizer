@@ -1,0 +1,637 @@
+@page "/scenario/{Id:guid}"
+@using CrewSizer.Domain.Services
+@inject IMediator Mediator
+@inject NavigationManager Nav
+@inject ActiveScenarioService ActiveScenario
+
+<PageTitle>@(model?.Nom ?? "Scénario") — CrewSizer</PageTitle>
+
+<div class="page-fill">
+@if (loading)
+{
+    <p>Chargement...</p>
+}
+else if (model is null)
+{
+    <p>Scénario introuvable.</p>
+    <button class="cs-btn cs-btn-secondary" @onclick="@(() => Nav.NavigateTo("/scenario"))">Retour</button>
+}
+else
+{
+    <div class="mb-3 flex items-center gap-2 shrink-0">
+        <button class="cs-btn cs-btn-primary" @onclick="Save">Enregistrer</button>
+        <button class="cs-btn cs-btn-success" @onclick="RunCalcul">Calculer</button>
+        <div class="flex-1"></div>
+        <button class="cs-btn cs-btn-secondary" @onclick="@(() => Nav.NavigateTo("/scenario"))">Retour</button>
+    </div>
+
+    @if (message is not null)
+    {
+        <div class="@(isError ? "cs-alert-error" : "cs-alert-success") mb-4 shrink-0">
+            @message
+        </div>
+    }
+
+    <div class="scroll-fill">
+    <div class="cs-tab-list shrink-0">
+        <button class="cs-tab @(activeTab == 0 ? "cs-tab-active" : "")" @onclick="() => activeTab = 0">Général</button>
+        <button class="cs-tab @(activeTab == 1 ? "cs-tab-active" : "")" @onclick="() => activeTab = 1">Limites FTL</button>
+        <button class="cs-tab @(activeTab == 2 ? "cs-tab-active" : "")" @onclick="() => activeTab = 2">Abattements</button>
+        <button class="cs-tab @(activeTab == 3 ? "cs-tab-active" : "")" @onclick="() => activeTab = 3">TSV Max</button>
+        <button class="cs-tab @(activeTab == 4 ? "cs-tab-active" : "")" @onclick="() => activeTab = 4">Calendrier</button>
+    </div>
+
+    @if (activeTab == 0)
+    {
+        @* ═══ Onglet 1 : General ═══ *@
+        <div class="p-4 space-y-6">
+            <div>
+                <h4 class="cs-section-title">Identification</h4>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium text-foreground">Nom</label>
+                        <input type="text" class="cs-input" @bind="model.Nom" />
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium text-foreground">Description</label>
+                        <input type="text" class="cs-input" @bind="model.Description" />
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <h4 class="cs-section-title">Période</h4>
+                <div class="grid grid-cols-3 gap-4">
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium text-foreground">Date début</label>
+                        <input type="date" class="cs-input font-data" value="@model.DateDebut.ToString("yyyy-MM-dd")"
+                               @onchange="OnDateDebutChanged" />
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium text-foreground">Date fin</label>
+                        <input type="date" class="cs-input font-data" value="@model.DateFin.ToString("yyyy-MM-dd")"
+                               @onchange="OnDateFinChanged" />
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium text-foreground">Nb jours</label>
+                        <input type="text" readonly
+                               class="cs-input bg-muted/50"
+                               value="@(model.DateFin >= model.DateDebut ? (model.DateFin.DayNumber - model.DateDebut.DayNumber + 1).ToString() : "—")" />
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <h4 class="cs-section-title">Effectif</h4>
+                <div class="grid grid-cols-4 gap-4">
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium text-foreground">CDB</label>
+                        <input type="number" class="cs-input" min="0" @bind="model.Cdb" />
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium text-foreground">OPL</label>
+                        <input type="number" class="cs-input" min="0" @bind="model.Opl" />
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium text-foreground">CC</label>
+                        <input type="number" class="cs-input" min="0" @bind="model.Cc" />
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium text-foreground">PNC</label>
+                        <input type="number" class="cs-input" min="0" @bind="model.Pnc" />
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <h4 class="cs-section-title">Jours OFF</h4>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium text-foreground">Réglementaire</label>
+                        <input type="number" class="cs-input" min="0" @bind="model.OffReglementaire" />
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium text-foreground">Accord d'entreprise</label>
+                        <input type="number" class="cs-input" min="0" @bind="model.OffAccordEntreprise" />
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (activeTab == 1)
+    {
+        @* ═══ Onglet 2 : Limites FTL ═══ *@
+        <div class="p-4 space-y-6">
+            <div>
+                <h4 class="cs-section-title">Limites FTL</h4>
+                <div class="grid grid-cols-3 gap-4">
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium text-foreground">TSV max journalier (h)</label>
+                        <input type="number" class="cs-input" min="0" step="0.5" @bind="model.TsvMaxJournalier" />
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium text-foreground">TSV moyen retenu (h)</label>
+                        <input type="number" class="cs-input" min="0" step="0.5" @bind="model.TsvMoyenRetenu" />
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium text-foreground">Repos minimum (h)</label>
+                        <input type="number" class="cs-input" min="0" step="0.5" @bind="model.ReposMinimum" />
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <h4 class="cs-section-title">Limites cumulatives HDV</h4>
+                <div class="grid grid-cols-3 gap-4">
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium text-foreground">H28 max (100h)</label>
+                        <input type="number" class="cs-input" min="0" @bind="model.H28Max" />
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium text-foreground">H90 max (280h)</label>
+                        <input type="number" class="cs-input" min="0" @bind="model.H90Max" />
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium text-foreground">H12 max (900h)</label>
+                        <input type="number" class="cs-input" min="0" @bind="model.H12Max" />
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <h4 class="cs-section-title">Limites temps de service</h4>
+                <div class="grid grid-cols-3 gap-4">
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium text-foreground">TS max 7j (60h)</label>
+                        <input type="number" class="cs-input" min="0" @bind="model.TsMax7j" />
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium text-foreground">TS max 14j (110h)</label>
+                        <input type="number" class="cs-input" min="0" @bind="model.TsMax14j" />
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium text-foreground">TS max 28j (190h)</label>
+                        <input type="number" class="cs-input" min="0" @bind="model.TsMax28j" />
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <h4 class="cs-section-title">Compteurs entrants PNT</h4>
+                <div class="grid grid-cols-3 gap-4">
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium text-foreground">Cumul 28j</label>
+                        <input type="number" class="cs-input" min="0" step="0.5" @bind="model.CumulPntCumul28" />
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium text-foreground">Cumul 90j</label>
+                        <input type="number" class="cs-input" min="0" step="0.5" @bind="model.CumulPntCumul90" />
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium text-foreground">Cumul 12m</label>
+                        <input type="number" class="cs-input" min="0" step="0.5" @bind="model.CumulPntCumul12" />
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <h4 class="cs-section-title">Compteurs entrants PNC</h4>
+                <div class="grid grid-cols-3 gap-4">
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium text-foreground">Cumul 28j</label>
+                        <input type="number" class="cs-input" min="0" step="0.5" @bind="model.CumulPncCumul28" />
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium text-foreground">Cumul 90j</label>
+                        <input type="number" class="cs-input" min="0" step="0.5" @bind="model.CumulPncCumul90" />
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium text-foreground">Cumul 12m</label>
+                        <input type="number" class="cs-input" min="0" step="0.5" @bind="model.CumulPncCumul12" />
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (activeTab == 2)
+    {
+        @* ═══ Onglet 3 : Abattements ═══ *@
+        <div class="p-4 space-y-6">
+            <div>
+                <h4 class="cs-section-title">Fonctions Sol PNT</h4>
+                @RenderFonctionsSol(model.FonctionsSolPNT, "PNT")
+            </div>
+            <div>
+                <h4 class="cs-section-title">Fonctions Sol PNC</h4>
+                @RenderFonctionsSol(model.FonctionsSolPNC, "PNC")
+            </div>
+            <div>
+                <h4 class="cs-section-title">Abattements PNT</h4>
+                @RenderAbattements(model.AbattementsPNT, "PNT")
+            </div>
+            <div>
+                <h4 class="cs-section-title">Abattements PNC</h4>
+                @RenderAbattements(model.AbattementsPNC, "PNC")
+            </div>
+        </div>
+    }
+
+    @if (activeTab == 3)
+    {
+        @* ═══ Onglet 4 : TSV Max ═══ *@
+            <div class="p-4 space-y-4">
+                <p class="text-sm text-muted-foreground">Table TSV Max par bande horaire</p>
+
+                @for (int bi = 0; bi < model.TableTsvMax.Count; bi++)
+                {
+                    var bandeIdx = bi;
+                    var bande = model.TableTsvMax[bandeIdx];
+
+                    <div class="rounded-xl border border-border bg-card p-4 space-y-3">
+                        <div class="flex items-center gap-3">
+                            <div class="flex items-center gap-2">
+                                <label class="text-xs text-muted-foreground">Début</label>
+                                <input type="time" value="@bande.DebutBande"
+                                       class="rounded-md border border-input bg-background px-2 py-1.5 font-data text-sm text-foreground"
+                                       @onchange="@(e => OnTsvDebutChanged(bandeIdx, e))" />
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <label class="text-xs text-muted-foreground">Fin</label>
+                                <input type="time" value="@bande.FinBande"
+                                       class="rounded-md border border-input bg-background px-2 py-1.5 font-data text-sm text-foreground"
+                                       @onchange="@(e => OnTsvFinChanged(bandeIdx, e))" />
+                            </div>
+                            <div class="flex-1"></div>
+                            <button class="rounded p-1 text-muted-foreground hover:bg-red-500/15 hover:text-red-400"
+                                    title="Supprimer la bande" @onclick="() => RemoveTsvBande(bandeIdx)">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                    <path d="M3 6h18" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <div class="space-y-1">
+                            <p class="text-xs text-muted-foreground">Max TSV par nombre d'étapes :</p>
+                            @foreach (var kv in bande.MaxParEtapes.OrderBy(x => x.Key))
+                            {
+                                var nbEtapes = kv.Key;
+                                var maxTsv = kv.Value;
+                                <div class="flex items-center gap-2">
+                                    <span class="w-20 font-data text-xs">@nbEtapes étape(s)</span>
+                                    <input type="number" value="@maxTsv" step="0.5"
+                                           class="w-24 rounded-md border border-input bg-background px-2 py-1 font-data text-sm text-foreground"
+                                           @onchange="@(e => OnTsvEtapeChanged(bandeIdx, nbEtapes, e))" />
+                                    <span class="text-xs text-muted-foreground">h</span>
+                                    <button class="rounded p-0.5 text-muted-foreground hover:bg-red-500/15 hover:text-red-400"
+                                            @onclick="() => RemoveTsvEtape(bandeIdx, nbEtapes)">
+                                        <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                            <path d="M3 6h18" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            }
+                            <button class="mt-1 inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs font-medium text-foreground hover:bg-accent"
+                                    @onclick="() => AddTsvEtape(bandeIdx)">
+                                + Étape
+                            </button>
+                        </div>
+                    </div>
+                }
+
+                <button class="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-accent"
+                        @onclick="AddTsvBande">
+                    + Ajouter une bande
+                </button>
+            </div>
+    }
+
+    @if (activeTab == 4)
+    {
+        @* ═══ Onglet 5 : Calendrier ═══ *@
+            <div class="p-4 space-y-4">
+                @if (SemainesIso.Count == 0)
+                {
+                    <p class="text-sm text-muted-foreground">
+                        Définissez les dates de la période dans l'onglet Général pour voir les semaines.
+                    </p>
+                }
+                else
+                {
+                    @* Legend *@
+                    <div class="flex flex-wrap gap-3 font-data text-[11px]">
+                        @foreach (var s in semaineTypes)
+                        {
+                            <span class="flex items-center gap-1.5">
+                                <span class="inline-block h-2.5 w-2.5 rounded-sm" style="background: @GetCalColor(s.Id);"></span>
+                                @s.Reference
+                            </span>
+                        }
+                    </div>
+
+                    @* Quarter grids *@
+                    @for (int q = 0; q < 4; q++)
+                    {
+                        var quarter = q;
+                        var startWeek = quarter * 13 + 1;
+                        var endWeek = Math.Min(startWeek + 13, 53);
+
+                        <div>
+                            <div class="mb-1 text-center font-data text-[11px] font-bold tracking-wider text-muted-foreground">
+                                T@(quarter + 1) — @QuarterLabels[quarter]
+                            </div>
+                            <div class="grid gap-1" style="grid-template-columns: repeat(@(endWeek - startWeek), minmax(0, 1fr));">
+                                @for (int w = startWeek; w < endWeek; w++)
+                                {
+                                    var week = w;
+                                    var aff = GetCalAffectation(week, model.DateDebut.Year);
+                                    var color = aff is not null ? GetCalColor(aff.SemaineTypeId) : null;
+
+                                    <div class="min-h-[44px] rounded-md border border-transparent p-1 text-center transition-colors hover:border-muted-foreground/30"
+                                         style="@(color is not null ? $"background: {color}08; border-color: {color}20;" : "")">
+                                        <div class="font-data text-[9px] font-bold text-muted-foreground">S@week</div>
+                                        <select class="w-full border-none bg-transparent text-center font-data text-[10px] font-bold outline-none"
+                                                style="color: @(color ?? "var(--muted-foreground)");"
+                                                value="@(aff?.SemaineTypeId.ToString() ?? "")"
+                                                @onchange="@(e => OnCalWeekChanged(week, model.DateDebut.Year, e))">
+                                            <option value="">—</option>
+                                            @foreach (var s in semaineTypes)
+                                            {
+                                                <option value="@s.Id" selected="@(aff?.SemaineTypeId == s.Id)">@s.Reference</option>
+                                            }
+                                        </select>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+
+                    @* Summary *@
+                    <div class="rounded-xl border border-border bg-card p-3 font-data text-xs text-muted-foreground">
+                        Résumé :
+                        @foreach (var s in semaineTypes)
+                        {
+                            var count = model.Calendrier.Count(a => a.SemaineTypeId == s.Id);
+                            <span> @s.Reference: @count sem. ·</span>
+                        }
+                        Non assignées : @(SemainesIso.Count - model.Calendrier.Count) sem.
+                    </div>
+                }
+            </div>
+    }
+    </div>
+}
+</div>
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    ScenarioEditModel? model;
+    bool loading = true;
+    string? message;
+    bool isError;
+    int activeTab;
+
+    // Temp fields for fonctions sol / abattements
+    string newFsNom = "";
+    int newFsNbPersonnes;
+    int newFsJours;
+    string newAbLibelle = "";
+    int newAbJours;
+
+    // Calendrier
+    List<SemaineTypeDto> semaineTypes = [];
+    Dictionary<Guid, string> stLookup = [];
+    static readonly string[] QuarterLabels = ["Janvier – Mars", "Avril – Juin", "Juillet – Septembre", "Octobre – Décembre"];
+    static readonly string[] SemaineColors = ["#06b6d4", "#f59e0b", "#10b981", "#a855f7", "#ef4444", "#3b82f6", "#f472b6", "#84cc16"];
+
+    List<(int semaine, int annee)> SemainesIso =>
+        model is not null && model.DateFin >= model.DateDebut
+            ? CalendrierHelper.GetSemainesDuPeriode(model.DateDebut, model.DateFin)
+            : [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var dto = await Mediator.Send(new GetScenarioByIdQuery(Id));
+        if (dto is not null)
+        {
+            model = ScenarioEditModel.FromDto(dto);
+            ActiveScenario.SetScenario(dto);
+        }
+
+        semaineTypes = await Mediator.Send(new GetAllSemainesTypesQuery());
+        stLookup = semaineTypes.ToDictionary(st => st.Id, st => st.Reference);
+        loading = false;
+    }
+
+    async Task Save()
+    {
+        if (model is null) return;
+        try
+        {
+            message = null;
+            var dto = model.ToDto();
+            var updated = await Mediator.Send(new UpdateScenarioCommand(dto));
+            model = ScenarioEditModel.FromDto(updated);
+            ActiveScenario.SetScenario(updated);
+            message = "Scénario enregistré.";
+            isError = false;
+        }
+        catch (Application.Common.Exceptions.ValidationException ex)
+        {
+            message = string.Join(" — ", ex.Errors.SelectMany(kv => kv.Value));
+            isError = true;
+        }
+    }
+
+    async Task RunCalcul()
+    {
+        if (model is null) return;
+        try
+        {
+            message = null;
+            var dto = model.ToDto();
+            await Mediator.Send(new UpdateScenarioCommand(dto));
+
+            var snapshot = await Mediator.Send(new RunCalculCommand(model.Id));
+            message = $"Calcul terminé — Taux d'engagement : {snapshot.TauxEngagementGlobal:P1} ({snapshot.StatutGlobal})";
+            isError = false;
+
+            var refreshed = await Mediator.Send(new GetScenarioByIdQuery(Id));
+            if (refreshed is not null)
+            {
+                model = ScenarioEditModel.FromDto(refreshed);
+                ActiveScenario.SetScenario(refreshed);
+            }
+        }
+        catch (Exception ex)
+        {
+            message = ex.Message;
+            isError = true;
+        }
+    }
+
+    // ─── Dates ─────────────────────────────────────────────────
+
+    void OnDateDebutChanged(ChangeEventArgs e)
+    {
+        if (model is not null && DateOnly.TryParse(e.Value?.ToString(), out var d))
+            model.DateDebut = d;
+    }
+
+    void OnDateFinChanged(ChangeEventArgs e)
+    {
+        if (model is not null && DateOnly.TryParse(e.Value?.ToString(), out var d))
+            model.DateFin = d;
+    }
+
+    // ─── TSV Max ─────────────────────────────────────────────────
+
+    void AddTsvBande()
+    {
+        model?.TableTsvMax.Add(new EntreeTsvMaxDto("06:00", "07:00", new Dictionary<int, double>()));
+    }
+
+    void RemoveTsvBande(int index)
+    {
+        model?.TableTsvMax.RemoveAt(index);
+    }
+
+    void OnTsvDebutChanged(int index, ChangeEventArgs e)
+    {
+        if (model is null) return;
+        var debut = e.Value?.ToString() ?? model.TableTsvMax[index].DebutBande;
+        UpdateTsvBandeField(index, debut, model.TableTsvMax[index].FinBande);
+    }
+
+    void OnTsvFinChanged(int index, ChangeEventArgs e)
+    {
+        if (model is null) return;
+        var fin = e.Value?.ToString() ?? model.TableTsvMax[index].FinBande;
+        UpdateTsvBandeField(index, model.TableTsvMax[index].DebutBande, fin);
+    }
+
+    void UpdateTsvBandeField(int index, string debut, string fin)
+    {
+        if (model is null) return;
+        model.TableTsvMax[index] = new EntreeTsvMaxDto(debut, fin, model.TableTsvMax[index].MaxParEtapes);
+    }
+
+    void AddTsvEtape(int bandeIndex)
+    {
+        if (model is null) return;
+        var bande = model.TableTsvMax[bandeIndex];
+        var next = bande.MaxParEtapes.Count > 0 ? bande.MaxParEtapes.Keys.Max() + 1 : 1;
+        bande.MaxParEtapes[next] = 13.0;
+    }
+
+    void RemoveTsvEtape(int bandeIndex, int nbEtapes)
+    {
+        model?.TableTsvMax[bandeIndex].MaxParEtapes.Remove(nbEtapes);
+    }
+
+    void OnTsvEtapeChanged(int bandeIndex, int nbEtapes, ChangeEventArgs e)
+    {
+        if (model is null) return;
+        if (double.TryParse(e.Value?.ToString(), out var v))
+            model.TableTsvMax[bandeIndex].MaxParEtapes[nbEtapes] = v;
+    }
+
+    // ─── Calendrier ──────────────────────────────────────────────
+
+    string GetCalColor(Guid semaineTypeId)
+    {
+        var idx = semaineTypes.FindIndex(s => s.Id == semaineTypeId);
+        return idx >= 0 ? SemaineColors[idx % SemaineColors.Length] : "#64748b";
+    }
+
+    AffectationSemaineDto? GetCalAffectation(int semaine, int annee)
+    {
+        return model?.Calendrier.FirstOrDefault(a => a.Semaine == semaine && a.Annee == annee);
+    }
+
+    void OnCalWeekChanged(int semaine, int annee, ChangeEventArgs e)
+    {
+        if (model is null) return;
+        var value = e.Value?.ToString() ?? "";
+
+        // Remove existing
+        model.Calendrier.RemoveAll(a => a.Semaine == semaine && a.Annee == annee);
+
+        // Add new if value selected
+        if (!string.IsNullOrEmpty(value) && Guid.TryParse(value, out var stId))
+        {
+            var stRef = stLookup.GetValueOrDefault(stId, "");
+            model.Calendrier.Add(new AffectationSemaineDto(semaine, annee, stId, stRef));
+        }
+    }
+
+    // ─── Fonctions Sol & Abattements (shared render) ─────────────
+
+    RenderFragment RenderFonctionsSol(List<FonctionSolDto> list, string categorie) => __builder =>
+    {
+        if (list.Count > 0)
+        {
+            <table class="cs-table mb-2">
+                <thead>
+                    <tr><th>Nom</th><th>Nb pers.</th><th>Jours/mois</th><th class="w-[50px]"></th></tr>
+                </thead>
+                <tbody>
+                    @for (int i = 0; i < list.Count; i++)
+                    {
+                        var idx = i;
+                        var fs = list[idx];
+                        <tr>
+                            <td>@fs.Nom</td>
+                            <td>@fs.NbPersonnes</td>
+                            <td>@fs.JoursSolMois</td>
+                            <td>
+                                <button class="rounded p-1 text-red-400 hover:bg-red-500/15"
+                                        @onclick="() => { list.RemoveAt(idx); StateHasChanged(); }">✕</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+        <div class="flex items-center gap-2">
+            <input type="text" class="cs-input flex-1" placeholder="Nom..." @bind="newFsNom" />
+            <input type="number" class="cs-input w-[90px]" min="0" placeholder="Nb pers." @bind="newFsNbPersonnes" />
+            <input type="number" class="cs-input w-[90px]" min="0" placeholder="Jours" @bind="newFsJours" />
+            <button class="cs-btn cs-btn-secondary cs-btn-sm" @onclick="() => { if (!string.IsNullOrWhiteSpace(newFsNom)) { list.Add(new FonctionSolDto(newFsNom.Trim(), newFsNbPersonnes, newFsJours)); newFsNom = string.Empty; newFsNbPersonnes = 0; newFsJours = 0; StateHasChanged(); } }">Ajouter</button>
+        </div>
+    };
+
+    RenderFragment RenderAbattements(List<AbattementDto> list, string categorie) => __builder =>
+    {
+        if (list.Count > 0)
+        {
+            <table class="cs-table mb-2">
+                <thead>
+                    <tr><th>Libellé</th><th>Jours/pers.</th><th class="w-[50px]"></th></tr>
+                </thead>
+                <tbody>
+                    @for (int i = 0; i < list.Count; i++)
+                    {
+                        var idx = i;
+                        var ab = list[idx];
+                        <tr>
+                            <td>@ab.Libelle</td>
+                            <td>@ab.JoursPersonnel</td>
+                            <td>
+                                <button class="rounded p-1 text-red-400 hover:bg-red-500/15"
+                                        @onclick="() => { list.RemoveAt(idx); StateHasChanged(); }">✕</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+        <div class="flex items-center gap-2">
+            <input type="text" class="cs-input flex-1" placeholder="Libellé..." @bind="newAbLibelle" />
+            <input type="number" class="cs-input w-[90px]" min="0" placeholder="Jours" @bind="newAbJours" />
+            <button class="cs-btn cs-btn-secondary cs-btn-sm" @onclick="() => { if (!string.IsNullOrWhiteSpace(newAbLibelle)) { list.Add(new AbattementDto(newAbLibelle.Trim(), newAbJours)); newAbLibelle = string.Empty; newAbJours = 0; StateHasChanged(); } }">Ajouter</button>
+        </div>
+    };
+}

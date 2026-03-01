@@ -1,0 +1,246 @@
+@inject IMediator Mediator
+
+<div class="grid h-full gap-4" style="grid-template-columns: 45fr 55fr;">
+        @* Liste membres *@
+        <div class="min-h-0 overflow-hidden">
+                <DxGrid @ref="gridMembres" Data="membres" KeyFieldName="Id"
+                        ShowFilterRow="true"
+                        FocusedRowEnabled="true"
+                        FocusedRowChanged="OnFocusedRowChanged"
+                        VirtualScrollingEnabled="true">
+                    <Columns>
+                        <DxGridDataColumn FieldName="Code" Caption="Code" Width="80px">
+                            <CellDisplayTemplate>
+                                <span class="font-data text-sm">@context.Value</span>
+                            </CellDisplayTemplate>
+                        </DxGridDataColumn>
+                        <DxGridDataColumn FieldName="Nom" Caption="Nom" />
+                        <DxGridDataColumn FieldName="Grade" Caption="Grade" Width="70px">
+                            <CellDisplayTemplate>
+                                <span class="font-data text-xs">@context.Value</span>
+                            </CellDisplayTemplate>
+                        </DxGridDataColumn>
+                        <DxGridDataColumn FieldName="Contrat" Caption="Type" Width="60px">
+                            <CellDisplayTemplate>
+                                <span class="font-data text-xs">@context.Value</span>
+                            </CellDisplayTemplate>
+                        </DxGridDataColumn>
+                        <DxGridDataColumn FieldName="Code" Caption="Checks" UnboundType="GridUnboundColumnType.String"
+                                          Width="100px" AllowSort="false">
+                            <CellDisplayTemplate>
+                                @{
+                                    var membre = (MembreEquipageDto)context.DataItem;
+                                    var checks = membre.QualificationsResume;
+                                }
+                                @if (checks.Count > 0)
+                                {
+                                    <div class="flex items-center gap-px">
+                                        @foreach (var c in checks)
+                                        {
+                                            <div class="h-4 w-1.5 rounded-sm @StatutBarColor(c)" title="@c"></div>
+                                        }
+                                    </div>
+                                }
+                                else
+                                {
+                                    <span class="text-muted-foreground">-</span>
+                                }
+                            </CellDisplayTemplate>
+                        </DxGridDataColumn>
+                        <DxGridDataColumn FieldName="StatutGlobal" Caption="Statut" Width="80px">
+                            <CellDisplayTemplate>
+                                @{ var statut = (StatutCheck)context.Value; }
+                                <span class="@StatutBadgeCss(statut)">@StatutLabel(statut)</span>
+                            </CellDisplayTemplate>
+                        </DxGridDataColumn>
+                    </Columns>
+                </DxGrid>
+        </div>
+
+        @* Détail membre — Card style identique React MembreDetail.tsx *@
+        <div class="min-h-0 overflow-hidden">
+                @if (detail is not null)
+                {
+                    var totalChecks = detail.NbChecksValides + detail.NbChecksExpires + detail.NbChecksAvertissement;
+
+                    <div class="h-full overflow-auto rounded-xl border border-border bg-card">
+                        @* Header *@
+                        <div class="border-b border-border px-6 pb-3 pt-4">
+                            <div class="flex items-center justify-between">
+                                <h3 class="text-lg font-semibold text-foreground">@detail.Nom</h3>
+                                <div class="flex items-center gap-2">
+                                    <span class="badge-outline font-data">@detail.Grade</span>
+                                    <span class="badge-outline font-data">@detail.Contrat</span>
+                                    <span class="@StatutBadgeCss(detail.StatutGlobal)">@StatutLabel(detail.StatutGlobal)</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        @* Content *@
+                        <div class="space-y-4 px-6 py-4">
+                            @* Info grid 3 cols *@
+                            <div class="grid grid-cols-3 gap-4">
+                                <div>
+                                    <p class="text-xs text-muted-foreground">Code</p>
+                                    <p class="font-data text-sm font-medium">@(string.IsNullOrEmpty(detail.Code) ? "-" : detail.Code)</p>
+                                </div>
+                                <div>
+                                    <p class="text-xs text-muted-foreground">Matricule</p>
+                                    <p class="font-data text-sm font-medium">@(string.IsNullOrEmpty(detail.Matricule) ? "-" : detail.Matricule)</p>
+                                </div>
+                                <div>
+                                    <p class="text-xs text-muted-foreground">Categorie</p>
+                                    <p class="font-data text-sm font-medium">@(string.IsNullOrEmpty(detail.Categorie) ? "-" : detail.Categorie)</p>
+                                </div>
+                                <div>
+                                    <p class="text-xs text-muted-foreground">Date entree</p>
+                                    <p class="font-data text-sm font-medium">@(detail.DateEntree?.ToString("dd/MM/yyyy") ?? "-")</p>
+                                </div>
+                                <div>
+                                    <p class="text-xs text-muted-foreground">Type avion</p>
+                                    <p class="font-data text-sm font-medium">@(string.IsNullOrEmpty(detail.TypeAvion) ? "-" : detail.TypeAvion)</p>
+                                </div>
+                                <div>
+                                    <p class="text-xs text-muted-foreground">Bases</p>
+                                    <p class="font-data text-sm font-medium">@(detail.Bases.Count > 0 ? string.Join(", ", detail.Bases) : "-")</p>
+                                </div>
+                            </div>
+                            @if (detail.Roles.Count > 0)
+                            {
+                                <div>
+                                    <p class="text-xs text-muted-foreground">Roles</p>
+                                    <p class="font-data text-sm font-medium">@string.Join(", ", detail.Roles)</p>
+                                </div>
+                            }
+
+                            @* Separator *@
+                            <div class="h-px bg-border"></div>
+
+                            @* Qualifications *@
+                            <div>
+                                <div class="mb-3 flex items-center gap-2">
+                                    <h4 class="text-sm font-semibold">Qualifications</h4>
+                                    <span class="font-data text-xs text-muted-foreground">@detail.NbChecksValides/@totalChecks</span>
+                                    @if (detail.NbChecksExpires > 0)
+                                    {
+                                        <span class="inline-flex items-center rounded-full border border-red-500/25 bg-red-500/15 px-2 py-0.5 text-xs font-medium text-red-400">
+                                            @detail.NbChecksExpires expire(s)
+                                        </span>
+                                    }
+                                    @if (detail.NbChecksAvertissement > 0)
+                                    {
+                                        <span class="inline-flex items-center rounded-full border border-amber-500/25 bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-400">
+                                            @detail.NbChecksAvertissement avert.
+                                        </span>
+                                    }
+                                </div>
+
+                                @if (detail.Qualifications.Count > 0)
+                                {
+                                    <div class="grid grid-cols-2 gap-2 xl:grid-cols-3">
+                                        @foreach (var q in detail.Qualifications)
+                                        {
+                                            var jours = q.DateExpiration.HasValue
+                                                ? (int)(q.DateExpiration.Value.Date - DateTime.Today).TotalDays
+                                                : (int?)null;
+
+                                            <div class="rounded-lg border p-3 @StatutCardCss(q.Statut)">
+                                                <div class="flex items-center justify-between">
+                                                    <span class="font-data text-sm font-semibold">@q.CodeCheck</span>
+                                                    <span class="@StatutBadgeCss(q.Statut)">@StatutLabel(q.Statut)</span>
+                                                </div>
+                                                <div class="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+                                                    <span>@(q.DateExpiration?.ToString("dd/MM/yyyy") ?? "-")</span>
+                                                    @if (jours.HasValue)
+                                                    {
+                                                        <span class="font-data font-semibold @StatutColor(q.Statut)">@(jours)j</span>
+                                                    }
+                                                </div>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                                else
+                                {
+                                    <p class="text-sm text-muted-foreground">Aucune qualification.</p>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="flex h-64 items-center justify-center rounded-lg border border-dashed border-border">
+                        <p class="text-muted-foreground">
+                            Selectionnez un membre pour voir le detail.
+                        </p>
+                    </div>
+                }
+        </div>
+</div>
+
+@code {
+    List<MembreEquipageDto> membres = [];
+    MembreDetailDto? detail;
+    IGrid? gridMembres;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await Mediator.Send(new GetMembresQuery());
+        membres = result.Membres;
+    }
+
+    async Task OnFocusedRowChanged(GridFocusedRowChangedEventArgs e)
+    {
+        if (e.DataItem is MembreEquipageDto dto)
+        {
+            detail = await Mediator.Send(new GetMembreDetailQuery(dto.Id));
+        }
+    }
+
+    // Badge classes — identique React statutBadgeClasses()
+    static string StatutBadgeCss(StatutCheck statut) => statut switch
+    {
+        StatutCheck.Valide => "badge-success",
+        StatutCheck.ExpirationProche or StatutCheck.Avertissement => "badge-warning",
+        StatutCheck.Expire => "badge-danger",
+        _ => "badge-muted"
+    };
+
+    static string StatutLabel(StatutCheck statut) => statut switch
+    {
+        StatutCheck.Valide => "Valide",
+        StatutCheck.ExpirationProche => "Proche",
+        StatutCheck.Avertissement => "Avert.",
+        StatutCheck.Expire => "Expire",
+        StatutCheck.NonApplicable => "N/A",
+        _ => "-"
+    };
+
+    // CheckMiniBar — identique React statutBarColor()
+    static string StatutBarColor(StatutCheck statut) => statut switch
+    {
+        StatutCheck.Valide => "bg-emerald-500",
+        StatutCheck.ExpirationProche or StatutCheck.Avertissement => "bg-amber-500",
+        StatutCheck.Expire => "bg-red-500",
+        _ => "bg-muted-foreground/30"
+    };
+
+    // CheckCard border — identique React statutCardClasses()
+    static string StatutCardCss(StatutCheck statut) => statut switch
+    {
+        StatutCheck.Valide => "check-card-valide",
+        StatutCheck.ExpirationProche or StatutCheck.Avertissement => "check-card-warning",
+        StatutCheck.Expire => "check-card-danger",
+        _ => "check-card-default"
+    };
+
+    // Jours restants color — identique React statutColor()
+    static string StatutColor(StatutCheck statut) => statut switch
+    {
+        StatutCheck.Valide => "text-emerald-400",
+        StatutCheck.ExpirationProche or StatutCheck.Avertissement => "text-amber-400",
+        StatutCheck.Expire => "text-red-400",
+        _ => "text-muted-foreground"
+    };
+}

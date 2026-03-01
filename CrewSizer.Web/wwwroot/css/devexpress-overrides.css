@@ -1,0 +1,45 @@
+/* DevExpress Fluent Dark — harmonisation avec le theme navy */
+
+:root {
+    /* Surfaces DevExpress alignees sur le navy */
+    --dxds-color-surface-neutral-default-rest: oklch(0.20 0.025 250);
+    --dxds-color-surface-neutral-subdued-rest: oklch(0.18 0.02 250);
+    /* Bordures */
+    --dxds-color-border-transparent-rest: oklch(0.30 0.025 250);
+}
+
+/* DxGrid */
+.dxbl-grid {
+    --dxbl-grid-border-color: var(--border);
+}
+
+/* DxPopup — aligné sur le style Dialog React (arrondi, ombre, espacement) */
+.dxbl-popup .dxbl-modal-dialog {
+    border-radius: 0.75rem;
+    box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.5);
+}
+.dxbl-popup .dxbl-modal-content {
+    border-color: var(--border);
+    border-radius: 0.75rem;
+    overflow: hidden;
+}
+.dxbl-popup .dxbl-popup-header {
+    padding: 1.25rem 1.5rem 0.75rem;
+    font-size: 1.125rem;
+    font-weight: 600;
+    line-height: 1;
+}
+.dxbl-popup .dxbl-popup-body {
+    padding: 0 1.5rem 1.5rem;
+}
+.dxbl-popup .dxbl-popup-footer {
+    padding: 0 1.5rem 1.5rem;
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
+/* DxFormLayout labels */
+.dxbl-fl-caption {
+    color: var(--muted-foreground);
+}

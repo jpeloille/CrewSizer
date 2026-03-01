@@ -1,0 +1,44 @@
+﻿
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <base href="/" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    @DxResourceManager.RegisterTheme(ActiveTheme)
+    @DxResourceManager.RegisterScripts()
+    <link href="@Assets["css/tailwind.css"]" rel="stylesheet" />
+    <link href="@Assets["css/devexpress-overrides.css"]" rel="stylesheet" />
+    <link href="@Assets["css/site.css"]" rel="stylesheet" />
+    <link href="@Assets["CrewSizer.Web.styles.css"]" rel="stylesheet" />
+    <ImportMap />
+    <HeadOutlet @rendermode="PageRenderMode" />
+</head>
+<body>
+    <Routes @rendermode="PageRenderMode" />
+    <script src="@Assets["_framework/blazor.web.js"]"></script>
+</body>
+</html>
+
+@code {
+    static readonly ITheme ActiveTheme = Themes.Fluent.Clone(properties => {
+        properties.Mode = ThemeMode.Dark;
+        properties.SetCustomAccentColor("#4dd0e1");
+    });
+
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    private IComponentRenderMode? PageRenderMode => IsStaticSsrPage() ? null : InteractiveServer;
+
+    private bool IsStaticSsrPage()
+    {
+        var path = HttpContext.Request.Path;
+        return path.StartsWithSegments("/login")
+            || path.StartsWithSegments("/register")
+            || path.StartsWithSegments("/logout");
+    }
+}

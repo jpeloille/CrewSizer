@@ -1,0 +1,28 @@
+<DxPopup @bind-Visible="Visible" HeaderText="@Title"
+         Width="420px" CloseOnOutsideClick="@(!Loading)" ShowCloseButton="@(!Loading)">
+    <BodyContentTemplate>
+        <p class="text-sm text-muted-foreground">@Description</p>
+        @if (ChildContent is not null)
+        {
+            <div class="mt-3">@ChildContent</div>
+        }
+        <div class="mt-5 flex justify-end gap-2">
+            <button class="cs-btn cs-btn-secondary" @onclick="OnCancel" disabled="@Loading">Annuler</button>
+            <button class="cs-btn cs-btn-danger" @onclick="OnConfirm" disabled="@Loading">
+                @(Loading ? "En cours..." : ConfirmLabel)
+            </button>
+        </div>
+    </BodyContentTemplate>
+</DxPopup>
+
+@code {
+    [Parameter] public bool Visible { get; set; }
+    [Parameter] public EventCallback<bool> VisibleChanged { get; set; }
+    [Parameter] public string Title { get; set; } = "Confirmer";
+    [Parameter] public string Description { get; set; } = "";
+    [Parameter] public string ConfirmLabel { get; set; } = "Supprimer";
+    [Parameter] public EventCallback OnConfirm { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+    [Parameter] public bool Loading { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

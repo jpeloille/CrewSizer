@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("CrewSizer")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+4a72437deebcba440cab96a439f7b81a9a6b8354")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+330563a538b8bec39f90dc28649d8ae6f8d7476d")]
 [assembly: System.Reflection.AssemblyProductAttribute("CrewSizer")]
 [assembly: System.Reflection.AssemblyTitleAttribute("CrewSizer")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

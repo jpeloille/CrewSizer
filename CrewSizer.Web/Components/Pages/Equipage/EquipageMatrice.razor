@@ -1,0 +1,106 @@
+@inject IMediator Mediator
+
+<div class="flex flex-col h-full">
+    <div class="shrink-0 mb-2 flex gap-2">
+        <button class="cs-btn cs-btn-sm @(filtreGroupe is null ? "cs-btn-primary" : "cs-btn-ghost")"
+                @onclick="() => SetFiltre(null)">Tous</button>
+        <button class="cs-btn cs-btn-sm @(filtreGroupe == GroupeCheck.Cockpit ? "cs-btn-primary" : "cs-btn-ghost")"
+                @onclick="() => SetFiltre(GroupeCheck.Cockpit)">Cockpit (PNT)</button>
+        <button class="cs-btn cs-btn-sm @(filtreGroupe == GroupeCheck.Cabine ? "cs-btn-primary" : "cs-btn-ghost")"
+                @onclick="() => SetFiltre(GroupeCheck.Cabine)">Cabine (PNC)</button>
+    </div>
+
+    <div class="flex-1 min-h-0">
+                @if (matrice is not null && matrice.Lignes.Count > 0)
+                {
+                    <DxGrid Data="matrice.Lignes" KeyFieldName="MembreId"
+                            ShowFilterRow="true"
+                            VirtualScrollingEnabled="true"
+                            HorizontalScrollBarMode="ScrollBarMode.Auto"
+                            CssClass="dxc-full-height">
+                        <Columns>
+                            <DxGridDataColumn FieldName="Code" Caption="Code" Width="80px" FixedStyle="GridColumnFixedStyle.Left" />
+                            <DxGridDataColumn FieldName="Nom" Caption="Nom" Width="140px" FixedStyle="GridColumnFixedStyle.Left" />
+                            <DxGridDataColumn FieldName="Grade" Caption="Grade" Width="65px" FixedStyle="GridColumnFixedStyle.Left" />
+                            @foreach (var checkCode in matrice.CodesChecks)
+                            {
+                                var cc = checkCode;
+                                <DxGridDataColumn FieldName="Code" Caption="@cc" UnboundType="GridUnboundColumnType.String"
+                                                  Width="70px" AllowSort="false"
+                                                  TextAlignment="GridTextAlignment.Center">
+                                    <CellDisplayTemplate>
+                                        @{
+                                            var ligne = (MatriceLigneDto)context.DataItem;
+                                            var cell = ligne.Checks.GetValueOrDefault(cc);
+                                            if (cell is not null)
+                                            {
+                                                var tooltip = cell.DateExpiration?.ToString("dd/MM/yyyy") ?? "";
+                                                <span class="inline-block min-w-6 rounded px-1 py-0.5 text-center text-xs @CellCss(cell.Statut)" title="@tooltip">@CellIcon(cell.Statut)</span>
+                                            }
+                                        }
+                                    </CellDisplayTemplate>
+                                </DxGridDataColumn>
+                            }
+                        </Columns>
+                    </DxGrid>
+
+                    <div class="mt-2 flex gap-4 text-xs text-muted-foreground">
+                        <span class="flex items-center gap-1">
+                            <span class="inline-block h-3 w-3 rounded-sm bg-emerald-500/40"></span> Valide
+                        </span>
+                        <span class="flex items-center gap-1">
+                            <span class="inline-block h-3 w-3 rounded-sm bg-amber-500/40"></span> Proche / Avert.
+                        </span>
+                        <span class="flex items-center gap-1">
+                            <span class="inline-block h-3 w-3 rounded-sm bg-red-500/40"></span> Expire
+                        </span>
+                        <span class="flex items-center gap-1">
+                            <span class="text-muted-foreground/40">○</span> N/A
+                        </span>
+                    </div>
+                }
+                else if (matrice is not null)
+                {
+                    <p class="mt-4 text-muted-foreground">Aucune donnee pour ce filtre.</p>
+                }
+    </div>
+</div>
+
+@code {
+    MatriceQualificationsDto? matrice;
+    GroupeCheck? filtreGroupe;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadMatrice();
+    }
+
+    async Task SetFiltre(GroupeCheck? groupe)
+    {
+        filtreGroupe = groupe;
+        await LoadMatrice();
+    }
+
+    async Task LoadMatrice()
+    {
+        matrice = await Mediator.Send(new GetMatriceQualificationsQuery(filtreGroupe));
+    }
+
+    static string CellCss(StatutCheck statut) => statut switch
+    {
+        StatutCheck.Valide => "bg-emerald-500/15 text-emerald-400",
+        StatutCheck.ExpirationProche => "bg-amber-500/15 text-amber-400",
+        StatutCheck.Avertissement => "bg-amber-500/15 text-amber-400",
+        StatutCheck.Expire => "bg-red-500/15 text-red-400 font-semibold",
+        _ => ""
+    };
+
+    static string CellIcon(StatutCheck statut) => statut switch
+    {
+        StatutCheck.Valide => "✓",
+        StatutCheck.ExpirationProche => "⚠",
+        StatutCheck.Avertissement => "⚠",
+        StatutCheck.Expire => "✗",
+        _ => "○"
+    };
+}

@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Parametres>
+  <Periode mois="Mars" annee="2026" nbJours="31" />
+  <Effectif cdb="12" opl="10" cc="8" pnc="6" />
+  <LimitesFTL tsvMaxJournalier="13" tsvMoyenRetenu="10" reposMinimum="12" />
+  <LimitesCumulatives h28Max="100" h90Max="280" h12Max="900">
+    <CumulPNT cumul28="0" cumul90="0" cumul12="0" />
+    <CumulPNC cumul28="0" cumul90="0" cumul12="0" />
+  </LimitesCumulatives>
+  <JoursOff reglementaire="8" accordEntreprise="2" />
+  <FonctionsSolPNT>
+    <Fonction nom="RDOV" nbPersonnes="1" joursSolMois="8" />
+    <Fonction nom="RDFE" nbPersonnes="1" joursSolMois="8" />
+    <Fonction nom="OSV" nbPersonnes="1" joursSolMois="6" />
+    <Fonction nom="TRI/TRE" nbPersonnes="2" joursSolMois="4" />
+  </FonctionsSolPNT>
+  <FonctionsSolPNC>
+    <Fonction nom="Chef cabine referent" nbPersonnes="1" joursSolMois="4" />
+  </FonctionsSolPNC>
+  <AbattementsPNT>
+    <Abattement libelle="Congés annuels" joursPersonnel="30" />
+    <Abattement libelle="Maladie / arrêts" joursPersonnel="8" />
+    <Abattement libelle="Formation CRM/LOFT" joursPersonnel="10" />
+    <Abattement libelle="Simulateur OPC/LPC" joursPersonnel="6" />
+    <Abattement libelle="Visites médicales" joursPersonnel="2" />
+    <Abattement libelle="Contrôles en ligne CEL" joursPersonnel="4" />
+    <Abattement libelle="Journées syndicales/DP" joursPersonnel="2" />
+    <Abattement libelle="Autres" joursPersonnel="3" />
+  </AbattementsPNT>
+  <AbattementsPNC>
+    <Abattement libelle="Congés annuels" joursPersonnel="20" />
+    <Abattement libelle="Maladie / arrêts" joursPersonnel="6" />
+    <Abattement libelle="Formation sécurité/sûreté" joursPersonnel="8" />
+    <Abattement libelle="Visites médicales" joursPersonnel="2" />
+    <Abattement libelle="Journées syndicales/DP" joursPersonnel="1" />
+    <Abattement libelle="Autres" joursPersonnel="2" />
+  </AbattementsPNC>
+  <TableTsvMax>
+    <Bande debut="06:00" fin="13:29">
+      <Max etapes="1" heures="13" />
+      <Max etapes="2" heures="12.75" />
+      <Max etapes="3" heures="12.5" />
+      <Max etapes="4" heures="12.25" />
+      <Max etapes="5" heures="12" />
+      <Max etapes="6" heures="11.75" />
+      <Max etapes="7" heures="11.5" />
+      <Max etapes="8" heures="11.25" />
+    </Bande>
+    <Bande debut="13:30" fin="17:59">
+      <Max etapes="1" heures="12.25" />
+      <Max etapes="2" heures="12" />
+      <Max etapes="3" heures="11.75" />
+      <Max etapes="4" heures="11.5" />
+      <Max etapes="5" heures="11.25" />
+      <Max etapes="6" heures="11" />
+      <Max etapes="7" heures="10.75" />
+      <Max etapes="8" heures="10.5" />
+    </Bande>
+    <Bande debut="18:00" fin="21:59">
+      <Max etapes="1" heures="11" />
+      <Max etapes="2" heures="10.75" />
+      <Max etapes="3" heures="10.5" />
+      <Max etapes="4" heures="10.25" />
+      <Max etapes="5" heures="10" />
+      <Max etapes="6" heures="9.75" />
+      <Max etapes="7" heures="9.5" />
+      <Max etapes="8" heures="9.25" />
+    </Bande>
+    <Bande debut="22:00" fin="05:59">
+      <Max etapes="1" heures="11" />
+      <Max etapes="2" heures="10.75" />
+      <Max etapes="3" heures="10.5" />
+      <Max etapes="4" heures="10.25" />
+      <Max etapes="5" heures="10" />
+      <Max etapes="6" heures="9.75" />
+      <Max etapes="7" heures="9.5" />
+      <Max etapes="8" heures="9.25" />
+    </Bande>
+  </TableTsvMax>
+  <LimitesTempsService max7j="60" max14j="110" max28j="190" />
+</Parametres>

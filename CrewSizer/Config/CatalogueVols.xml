@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<CatalogueVols>
+  <Vol numero="101" depart="NOU" arrivee="LIF" heureDepart="07:00" heureArrivee="07:30" />
+  <Vol numero="102" depart="LIF" arrivee="NOU" heureDepart="08:00" heureArrivee="08:30" />
+  <Vol numero="103" depart="NOU" arrivee="LIF" heureDepart="07:30" heureArrivee="08:00" />
+  <Vol numero="104" depart="LIF" arrivee="NOU" heureDepart="08:45" heureArrivee="09:15" />
+  <Vol numero="201" depart="NOU" arrivee="MEE" heureDepart="10:30" heureArrivee="11:05" />
+  <Vol numero="202" depart="MEE" arrivee="NOU" heureDepart="12:10" heureArrivee="12:45" />
+  <Vol numero="203" depart="NOU" arrivee="MEE" heureDepart="15:00" heureArrivee="15:35" />
+  <Vol numero="204" depart="MEE" arrivee="NOU" heureDepart="16:40" heureArrivee="17:15" />
+  <Vol numero="301" depart="NOU" arrivee="KNQ" heureDepart="15:00" heureArrivee="15:30" />
+  <Vol numero="302" depart="KNQ" arrivee="NOU" heureDepart="16:15" heureArrivee="16:45" />
+  <Vol numero="401" depart="NOU" arrivee="UVE" heureDepart="10:30" heureArrivee="11:10" />
+  <Vol numero="402" depart="UVE" arrivee="NOU" heureDepart="12:35" heureArrivee="13:15" />
+  <Vol numero="501" depart="NOU" arrivee="ILP" heureDepart="15:00" heureArrivee="15:25" />
+  <Vol numero="502" depart="ILP" arrivee="NOU" heureDepart="16:05" heureArrivee="16:30" />
+  <Vol numero="601" depart="NOU" arrivee="TGJ" heureDepart="15:00" heureArrivee="15:25" />
+  <Vol numero="602" depart="TGJ" arrivee="NOU" heureDepart="15:55" heureArrivee="16:20" />
+  <Vol numero="701" depart="NOU" arrivee="BMY" heureDepart="10:30" heureArrivee="11:05" />
+  <Vol numero="702" depart="BMY" arrivee="NOU" heureDepart="12:10" heureArrivee="12:45" />
+</CatalogueVols>

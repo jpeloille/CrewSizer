@@ -1,0 +1,37 @@
+@inherits LayoutComponentBase
+@inject NavigationManager NavigationManager
+
+<div class="flex h-screen bg-background text-foreground">
+    <aside class="flex h-screen w-60 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
+        <div class="flex h-14 shrink-0 items-center gap-2 px-4">
+            <IconPlane CssClass="h-5 w-5 text-primary" />
+            <span class="font-data text-lg font-semibold text-primary">CrewSizer</span>
+        </div>
+
+        <div class="mx-3 h-px bg-sidebar-border"></div>
+
+        <nav class="flex-1 space-y-0.5 overflow-auto p-2">
+            <NavMenu />
+        </nav>
+
+        <div class="mx-3 h-px bg-sidebar-border"></div>
+
+        <div class="p-4">
+            <AuthorizeView>
+                <Authorized>
+                    <p class="mb-2 truncate font-data text-xs text-muted-foreground">
+                        @context.User.Identity?.Name
+                    </p>
+                    <a href="/logout" class="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
+                        <IconLogOut CssClass="h-4 w-4" />
+                        Deconnexion
+                    </a>
+                </Authorized>
+            </AuthorizeView>
+        </div>
+    </aside>
+
+    <main class="flex-1 overflow-auto p-6">
+        @Body
+    </main>
+</div>

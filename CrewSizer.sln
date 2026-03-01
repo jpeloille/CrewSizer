@@ -3,8 +3,6 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # 
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CrewSizer", "CrewSizer\CrewSizer.csproj", "{BB343DE5-E662-411D-8056-2983F5A56521}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CrewSizer.Web", "CrewSizer.Web\CrewSizer.Web.csproj", "{4BD2C147-8538-42E7-A8BF-AE56F48B3393}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CrewSizer.Domain", "CrewSizer.Domain\CrewSizer.Domain.csproj", "{B470F943-58F9-4561-96C2-6108BFE97E24}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CrewSizer.Application", "CrewSizer.Application\CrewSizer.Application.csproj", "{CC1AA078-B4E5-4CCF-BF0E-75D5498FE081}"
@@ -23,10 +21,6 @@ Global
 		{BB343DE5-E662-411D-8056-2983F5A56521}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{BB343DE5-E662-411D-8056-2983F5A56521}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{BB343DE5-E662-411D-8056-2983F5A56521}.Release|Any CPU.Build.0 = Release|Any CPU
-		{4BD2C147-8538-42E7-A8BF-AE56F48B3393}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{4BD2C147-8538-42E7-A8BF-AE56F48B3393}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{4BD2C147-8538-42E7-A8BF-AE56F48B3393}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{4BD2C147-8538-42E7-A8BF-AE56F48B3393}.Release|Any CPU.Build.0 = Release|Any CPU
 		{B470F943-58F9-4561-96C2-6108BFE97E24}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{B470F943-58F9-4561-96C2-6108BFE97E24}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B470F943-58F9-4561-96C2-6108BFE97E24}.Release|Any CPU.ActiveCfg = Release|Any CPU

@@ -1,0 +1,99 @@
+@page "/register"
+@layout AuthLayout
+@using Microsoft.AspNetCore.Identity
+@using CrewSizer.Infrastructure.Identity
+@inject UserManager<ApplicationUser> UserManager
+@inject SignInManager<ApplicationUser> SignInManager
+@inject NavigationManager NavigationManager
+
+<PageTitle>Inscription — CrewSizer</PageTitle>
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="cs-alert-error mb-4">@errorMessage</div>
+}
+
+<EditForm Model="Input" FormName="register" OnValidSubmit="RegisterUser" method="post">
+    <DataAnnotationsValidator />
+    <div class="space-y-4">
+        <div class="space-y-2">
+            <label for="nomComplet" class="text-sm font-medium text-foreground">Nom complet</label>
+            <InputText id="nomComplet" @bind-Value="Input.NomComplet"
+                       class="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+        </div>
+        <div class="space-y-2">
+            <label for="username" class="text-sm font-medium text-foreground">Nom d'utilisateur</label>
+            <InputText id="username" @bind-Value="Input.UserName"
+                       class="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+        </div>
+        <div class="space-y-2">
+            <label for="email" class="text-sm font-medium text-foreground">Email</label>
+            <InputText id="email" @bind-Value="Input.Email" type="email"
+                       class="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+        </div>
+        <div class="space-y-2">
+            <label for="password" class="text-sm font-medium text-foreground">Mot de passe</label>
+            <InputText id="password" @bind-Value="Input.Password" type="password"
+                       class="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+        </div>
+        <div class="space-y-2">
+            <label for="confirm" class="text-sm font-medium text-foreground">Confirmer le mot de passe</label>
+            <InputText id="confirm" @bind-Value="Input.ConfirmPassword" type="password"
+                       class="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+        </div>
+        <button type="submit"
+                class="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90">
+            Creer le compte
+        </button>
+    </div>
+</EditForm>
+
+<div class="mt-4 text-center">
+    <a href="/login" class="text-sm text-primary hover:underline">Retour a la connexion</a>
+</div>
+
+@code {
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    [SupplyParameterFromForm]
+    private RegisterInput Input { get; set; } = new();
+
+    private string? errorMessage;
+
+    private async Task RegisterUser()
+    {
+        if (Input.Password != Input.ConfirmPassword)
+        {
+            errorMessage = "Les mots de passe ne correspondent pas.";
+            return;
+        }
+
+        var user = new ApplicationUser
+        {
+            UserName = Input.UserName,
+            Email = Input.Email,
+            NomComplet = Input.NomComplet,
+            EmailConfirmed = true
+        };
+
+        var result = await UserManager.CreateAsync(user, Input.Password);
+        if (!result.Succeeded)
+        {
+            errorMessage = string.Join(" ", result.Errors.Select(e => e.Description));
+            return;
+        }
+
+        await SignInManager.SignInAsync(user, isPersistent: false);
+        NavigationManager.NavigateTo("/", forceLoad: true);
+    }
+
+    private sealed class RegisterInput
+    {
+        public string NomComplet { get; set; } = "";
+        public string UserName { get; set; } = "";
+        public string Email { get; set; } = "";
+        public string Password { get; set; } = "";
+        public string ConfirmPassword { get; set; } = "";
+    }
+}

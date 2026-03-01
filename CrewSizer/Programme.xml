@@ -1,0 +1,24 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Programme>
+  <Periode mois="" annee="0" nbJours="0" />
+  <CatalogueVols>
+    <Vol id="07590eed-2553-4320-a861-e5cb2baeafb1" numero="201" depart="NOU" arrivee="LIF" heureDepart="07:00" heureArrivee="07:40" />
+    <Vol id="0bb4b07e-d50d-42fd-a9cb-eee358ad2c1a" numero="202" depart="LIF" arrivee="NOU" heureDepart="08:10" heureArrivee="08:50" />
+    <Vol id="96dcdee2-3528-4f07-b0db-997ec99f538f" numero="401" depart="NOU" arrivee="ILP" heureDepart="09:40" heureArrivee="10:20" />
+    <Vol id="9d3b3705-df45-4dee-bef9-d0d12208f3b0" numero="402" depart="ILP" arrivee="NOU" heureDepart="10:50" heureArrivee="11:30" />
+  </CatalogueVols>
+  <CatalogueBlocs>
+    <Bloc id="4557bb1b-8a6a-4d31-9486-de7db8207420" code="ROT-LIF-AM" periode="AM" debutDP="06:10" finDP="11:50" debutFDP="06:10" finFDP="11:30">
+      <Etape position="1" vol="07590eed-2553-4320-a861-e5cb2baeafb1" />
+      <Etape position="2" vol="0bb4b07e-d50d-42fd-a9cb-eee358ad2c1a" />
+      <Etape position="3" vol="96dcdee2-3528-4f07-b0db-997ec99f538f" />
+      <Etape position="4" vol="9d3b3705-df45-4dee-bef9-d0d12208f3b0" />
+    </Bloc>
+  </CatalogueBlocs>
+  <SemainesTypes>
+    <SemaineType id="40725c5d-4751-48b3-9e12-99c38f56ef1b" reference="SB-26-02" saison="BASSE">
+      <Placement sequence="1" jour="Lundi" bloc="4557bb1b-8a6a-4d31-9486-de7db8207420" />
+    </SemaineType>
+  </SemainesTypes>
+  <Calendrier />
+</Programme>

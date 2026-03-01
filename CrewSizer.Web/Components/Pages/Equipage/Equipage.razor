@@ -1,0 +1,145 @@
+@page "/equipage"
+@inject IMediator Mediator
+
+<PageTitle>Equipage — CrewSizer</PageTitle>
+
+<div class="flex flex-col h-full">
+    <div class="shrink-0">
+        <h3 class="mb-2 text-2xl font-bold text-foreground">Gestion de l'equipage</h3>
+    </div>
+
+        @if (kpi is not null)
+        {
+            var totalAlertes = kpi.AlertesExpirees + kpi.AlertesProches + kpi.AlertesAvertissement;
+
+    <div class="shrink-0">
+                    <div class="mb-2 grid grid-cols-6 gap-3">
+                        <div class="cs-kpi">
+                            <div class="cs-kpi-value">@kpi.TotalActifs</div>
+                            <div class="cs-kpi-label">Actifs</div>
+                        </div>
+                        <div class="cs-kpi">
+                            <div class="cs-kpi-value">@kpi.Cdb</div>
+                            <div class="cs-kpi-label">CDB</div>
+                        </div>
+                        <div class="cs-kpi">
+                            <div class="cs-kpi-value">@kpi.Opl</div>
+                            <div class="cs-kpi-label">OPL</div>
+                        </div>
+                        <div class="cs-kpi">
+                            <div class="cs-kpi-value">@kpi.Cc</div>
+                            <div class="cs-kpi-label">CC</div>
+                        </div>
+                        <div class="cs-kpi">
+                            <div class="cs-kpi-value">@kpi.Pnc</div>
+                            <div class="cs-kpi-label">PNC</div>
+                        </div>
+                        <div class="cs-kpi @(totalAlertes > 0 ? "border-red-500/40 bg-red-500/5" : "")">
+                            <div class="cs-kpi-value">@totalAlertes</div>
+                            <div class="cs-kpi-label">Alertes</div>
+                            @if (totalAlertes > 0)
+                            {
+                                <p class="text-xs text-muted-foreground">@kpi.AlertesExpirees exp. / @kpi.AlertesProches proche</p>
+                            }
+                        </div>
+                    </div>
+    </div>
+        }
+
+        @if (alertes.Count > 0)
+        {
+    <div class="shrink-0">
+                    <div class="my-2">
+                        <button class="cs-btn cs-btn-danger cs-btn-sm" @onclick="() => alertesVisibles = !alertesVisibles">
+                            Alertes qualifications (@alertes.Count)
+                        </button>
+
+                        @if (alertesVisibles)
+                        {
+                            <div class="mt-2">
+                                <DxGrid Data="alertes" KeyFieldName="MembreId" PageSize="10" PagerVisible="true">
+                                    <Columns>
+                                        <DxGridDataColumn FieldName="MembreCode" Caption="Code" Width="80px" />
+                                        <DxGridDataColumn FieldName="MembreNom" Caption="Nom" Width="160px" />
+                                        <DxGridDataColumn FieldName="Grade" Caption="Grade" Width="65px" />
+                                        <DxGridDataColumn FieldName="CodeCheck" Caption="Check" Width="120px" />
+                                        <DxGridDataColumn FieldName="DescriptionCheck" Caption="Description" />
+                                        <DxGridDataColumn FieldName="Statut" Caption="Statut" Width="90px">
+                                            <CellDisplayTemplate>
+                                                @{ var s = (StatutCheck)context.Value; }
+                                                <span class="@StatutBadgeCss(s)">@StatutLabel(s)</span>
+                                            </CellDisplayTemplate>
+                                        </DxGridDataColumn>
+                                        <DxGridDataColumn FieldName="DateExpiration" Caption="Expiration" Width="100px" DisplayFormat="dd/MM/yyyy" />
+                                        <DxGridDataColumn FieldName="JoursRestants" Caption="Jours" Width="65px"
+                                                          TextAlignment="GridTextAlignment.Center" />
+                                    </Columns>
+                                </DxGrid>
+                            </div>
+                        }
+                    </div>
+    </div>
+        }
+
+        @if (loaded)
+        {
+    <div class="flex-1 min-h-0 flex flex-col">
+        <div class="cs-tab-list shrink-0">
+            <button class="cs-tab @(activeTabIndex == 0 ? "cs-tab-active" : "")" @onclick="() => activeTabIndex = 0">Membres</button>
+            <button class="cs-tab @(activeTabIndex == 1 ? "cs-tab-active" : "")" @onclick="() => activeTabIndex = 1">Matrice</button>
+            <button class="cs-tab @(activeTabIndex == 2 ? "cs-tab-active" : "")" @onclick="() => activeTabIndex = 2">Checks</button>
+            <button class="cs-tab @(activeTabIndex == 3 ? "cs-tab-active" : "")" @onclick="() => activeTabIndex = 3">Import APM</button>
+        </div>
+        <div class="flex-1 min-h-0">
+            @if (activeTabIndex == 0) { <EquipageMembres /> }
+            @if (activeTabIndex == 1) { <EquipageMatrice /> }
+            @if (activeTabIndex == 2) { <EquipageChecks /> }
+            @if (activeTabIndex == 3) { <EquipageImport OnImportComplete="OnImportComplete" /> }
+        </div>
+    </div>
+        }
+</div>
+
+@code {
+    int activeTabIndex;
+    EquipageKpiDto? kpi;
+    List<AlerteQualificationDto> alertes = [];
+    bool alertesVisibles;
+    bool loaded;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadKpiAndAlertes();
+        loaded = true;
+    }
+
+    async Task LoadKpiAndAlertes()
+    {
+        kpi = await Mediator.Send(new GetEquipageKpiQuery());
+        alertes = await Mediator.Send(new GetAlertesQualificationsQuery());
+        if (kpi.TotalActifs == 0) kpi = null;
+    }
+
+    async Task OnImportComplete()
+    {
+        await LoadKpiAndAlertes();
+        StateHasChanged();
+    }
+
+    static string StatutBadgeCss(StatutCheck statut) => statut switch
+    {
+        StatutCheck.Valide => "badge-success",
+        StatutCheck.ExpirationProche or StatutCheck.Avertissement => "badge-warning",
+        StatutCheck.Expire => "badge-danger",
+        _ => ""
+    };
+
+    static string StatutLabel(StatutCheck statut) => statut switch
+    {
+        StatutCheck.Valide => "Valide",
+        StatutCheck.ExpirationProche => "Proche",
+        StatutCheck.Avertissement => "Avert.",
+        StatutCheck.Expire => "Expire",
+        _ => "N/A"
+    };
+}

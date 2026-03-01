@@ -1,0 +1,397 @@
+@page "/programme/semaines"
+@inject IMediator Mediator
+
+<PageTitle>Semaines types — CrewSizer</PageTitle>
+
+<div class="flex flex-col h-full">
+    <div class="shrink-0">
+        <div class="mb-2 flex items-center justify-between">
+            <h3 class="text-2xl font-bold text-foreground">Semaines types</h3>
+        </div>
+        <PipelineNav ActiveStep="semaines" />
+        <div class="mb-2 flex items-center justify-end">
+            <button class="cs-btn cs-btn-primary" @onclick="OpenCreate">Nouvelle semaine type</button>
+        </div>
+    </div>
+
+    <div class="flex-1 min-h-0">
+                <div class="h-full overflow-auto">
+                    <div class="space-y-4">
+                        @foreach (var wp in semaines)
+                        {
+                            var totalBlocs = wp.Placements.Count;
+                            var totalFlights = wp.Placements.Sum(p => blocLookup.GetValueOrDefault(p.BlocId)?.NbEtapes ?? 0);
+                            var totalHdv = wp.Placements.Sum(p => blocLookup.GetValueOrDefault(p.BlocId)?.HdvBloc ?? 0);
+                            var isHS = wp.Saison == "HAUTE";
+
+                            <div class="space-y-2">
+                                @* Header *@
+                                <div class="flex flex-wrap items-center gap-3">
+                                    <span class="font-data text-lg font-bold tracking-wider text-primary">@wp.Reference</span>
+                                    <span class="@(isHS ? "badge-saison-haute" : "badge-saison-basse")">@wp.Saison</span>
+                                    <span class="font-data text-[11px] text-muted-foreground">
+                                        @totalBlocs blocs · @totalFlights vols · @HoursToHHMM(totalHdv) bloc
+                                    </span>
+                                    <div class="flex-1"></div>
+                                    <button class="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent"
+                                            @onclick="() => OpenEdit(wp)">
+                                        <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                        </svg>
+                                        Editer
+                                    </button>
+                                    <button class="rounded p-1 text-muted-foreground hover:bg-red-500/15 hover:text-red-400"
+                                            title="Supprimer" @onclick="() => OpenDelete(wp)">
+                                        <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                            <path d="M3 6h18" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                        </svg>
+                                    </button>
+                                </div>
+
+                                @* 7-day grid — identique React SemainesTab.tsx *@
+                                <div class="grid grid-cols-7 gap-1.5">
+                                    @for (int d = 0; d < 7; d++)
+                                    {
+                                        var dayName = JoursSemaine[d];
+                                        var dayShort = JoursShort[d];
+                                        var dayPlacements = wp.Placements
+                                            .Where(p => p.Jour == dayName)
+                                            .OrderBy(p => p.Sequence)
+                                            .ToList();
+
+                                        <div class="min-h-[80px] rounded-lg border border-border bg-card p-2">
+                                            <div class="mb-1.5 font-data text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                                                @dayShort
+                                            </div>
+
+                                            @if (dayPlacements.Count == 0)
+                                            {
+                                                <div class="text-[10px] italic text-muted-foreground/50">—</div>
+                                            }
+
+                                            @foreach (var dp in dayPlacements)
+                                            {
+                                                var blk = blocLookup.GetValueOrDefault(dp.BlocId);
+                                                if (blk is null) continue;
+                                                var isMatin = blk.Periode == "matin";
+                                                var etapeVols = blk.Etapes
+                                                    .OrderBy(e => e.Position)
+                                                    .Select(e => volLookup.GetValueOrDefault(e.VolId))
+                                                    .Where(v => v is not null)
+                                                    .ToList();
+
+                                                <div class="mb-1 rounded border-l-2 px-1.5 py-1 font-data text-[11px] @(isMatin ? "border-l-amber-500 bg-amber-500/5" : "border-l-purple-500 bg-purple-500/5")">
+                                                    <div class="mb-0.5 font-bold">@blk.Code</div>
+                                                    @foreach (var vol in etapeVols)
+                                                    {
+                                                        if (vol is null) continue;
+                                                        var routeColor = GetRouteColor(vol.Depart, vol.Arrivee);
+                                                        <div class="flex gap-1 text-[9px] text-muted-foreground">
+                                                            <span class="flex items-center gap-0.5" style="color: @routeColor;">
+                                                                @vol.Depart → @vol.Arrivee
+                                                            </span>
+                                                            <span>@vol.HeureDepart</span>
+                                                        </div>
+                                                    }
+                                                </div>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        }
+
+                        @if (semaines.Count == 0)
+                        {
+                            <div class="py-12 text-center text-muted-foreground">
+                                Aucune semaine type. Créez-en une pour commencer.
+                            </div>
+                        }
+                    </div>
+                </div>
+    </div>
+</div>
+
+@* Edit Popup — DxPopup standalone *@
+<DxPopup @bind-Visible="editPopupVisible" HeaderText="@popupTitle"
+         Width="700px" CloseOnOutsideClick="false" ShowCloseButton="true">
+    <BodyContentTemplate Context="popupCtx">
+        @if (editModel is not null)
+        {
+            @if (editError is not null)
+            {
+                <div class="cs-alert-error mb-4">@editError</div>
+            }
+            <div class="grid grid-cols-2 gap-4">
+                <div class="space-y-2">
+                    <label class="text-sm font-medium text-foreground">Référence</label>
+                    <input type="text" class="cs-input font-data font-bold" @bind="editModel.Reference" placeholder="S1-HS" />
+                </div>
+                <div class="space-y-2">
+                    <label class="text-sm font-medium text-foreground">Saison</label>
+                    <select class="cs-input" @bind="editModel.Saison">
+                        <option value="">Sélectionner...</option>
+                        @foreach (var s in Saisons)
+                        { <option value="@s">@s</option> }
+                    </select>
+                </div>
+            </div>
+
+            <div class="mt-4 space-y-3">
+                <label class="text-sm font-medium text-foreground">Placements (blocs)</label>
+
+                            @* 7-day interactive grid *@
+                            <div class="mb-3 grid grid-cols-7 gap-1.5">
+                                @for (int d = 0; d < 7; d++)
+                                {
+                                    var dayName = JoursSemaine[d];
+                                    var dayShort = JoursShort[d];
+                                    var dayPlacements = editModel.Placements
+                                        .Where(p => p.Jour == dayName)
+                                        .OrderBy(p => p.Sequence)
+                                        .ToList();
+
+                                    <div class="min-h-[80px] rounded-lg border border-border bg-background p-2">
+                                        <div class="mb-1.5 font-data text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                                            @dayShort
+                                        </div>
+                                        @foreach (var pl in dayPlacements)
+                                        {
+                                            var bloc = blocLookup.GetValueOrDefault(pl.BlocId);
+                                            var plRef = pl;
+                                            <div class="mb-1 flex items-center gap-1 rounded bg-card px-1.5 py-0.5 text-[10px]">
+                                                <span class="font-data font-bold">@(bloc?.Code ?? "?")</span>
+                                                <button class="ml-auto text-red-400 hover:text-red-300"
+                                                        @onclick="() => editModel.Placements.Remove(plRef)">✕</button>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+
+                            <div class="flex flex-wrap items-center gap-2">
+                                <select class="cs-input w-[140px] shrink-0" @bind="newPlacementJour">
+                                    <option value="">Jour...</option>
+                                    @foreach (var j in JoursSemaine)
+                                    { <option value="@j">@j</option> }
+                                </select>
+                                <input type="number" class="cs-input w-[80px] shrink-0" min="1"
+                                       @bind="newPlacementSequence" />
+                                <DxComboBox TData="BlocVolDto" TValue="Guid?"
+                                            Data="allBlocs"
+                                            @bind-Value="newPlacementBlocId"
+                                            TextFieldName="Code"
+                                            ValueFieldName="Id"
+                                            NullText="Bloc..."
+                                            ClearButtonDisplayMode="DataEditorClearButtonDisplayMode.Auto"
+                                            CssClass="flex-grow-1" />
+                                <button class="cs-btn cs-btn-secondary cs-btn-sm" @onclick="AddPlacement"
+                                        disabled="@(!CanAddPlacement)">Ajouter</button>
+                            </div>
+            </div>
+
+            <div class="mt-4 flex justify-end gap-2">
+                <button class="cs-btn cs-btn-secondary" @onclick="() => editPopupVisible = false"
+                        disabled="@isSaving">Annuler</button>
+                <button class="cs-btn cs-btn-primary" @onclick="SaveSemaine"
+                        disabled="@(isSaving || string.IsNullOrWhiteSpace(editModel.Reference) || editModel.Placements.Count == 0)">
+                    @(isSaving ? "Enregistrement..." : "Enregistrer")
+                </button>
+            </div>
+        }
+    </BodyContentTemplate>
+</DxPopup>
+
+@* Delete confirmation *@
+<ConfirmPopup @bind-Visible="deletePopupVisible"
+              Title="Supprimer la semaine type"
+              Description="@($"Supprimer \"{deleteTarget?.Reference}\" ? Cette action est irréversible.")"
+              OnConfirm="ConfirmDelete"
+              OnCancel="@(() => deletePopupVisible = false)"
+              Loading="isDeleting" />
+
+@code {
+    static readonly string[] JoursSemaine = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
+    static readonly string[] JoursShort = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
+    static readonly string[] Saisons = ["BASSE", "HAUTE"];
+
+    List<SemaineTypeDto> semaines = [];
+    List<BlocVolDto> allBlocs = [];
+    List<VolDto> allVols = [];
+    Dictionary<Guid, BlocVolDto> blocLookup = [];
+    Dictionary<Guid, VolDto> volLookup = [];
+
+    // Edit popup
+    bool editPopupVisible;
+    string popupTitle = "Semaine type";
+    string? editError;
+    SemaineEdit? editModel;
+    Guid? editId;
+    bool isSaving;
+
+    // Add placement fields
+    string? newPlacementJour;
+    int newPlacementSequence = 1;
+    Guid? newPlacementBlocId;
+    bool CanAddPlacement => !string.IsNullOrEmpty(newPlacementJour) && newPlacementBlocId.HasValue;
+
+    // Delete popup
+    bool deletePopupVisible;
+    SemaineTypeDto? deleteTarget;
+    bool isDeleting;
+
+    // Route colors — identique React constants.ts
+    static readonly Dictionary<string, string> RouteColors = new()
+    {
+        ["LIF"] = "#06b6d4", ["MEE"] = "#8b5cf6", ["OVE"] = "#f59e0b",
+        ["KNE"] = "#10b981", ["ILP"] = "#f472b6", ["TOU"] = "#ef4444",
+        ["BMY"] = "#6366f1", ["TGJ"] = "#84cc16", ["GEA"] = "#94a3b8",
+        ["NOU"] = "#3b82f6", ["KNQ"] = "#14b8a6", ["VLI"] = "#e879f9",
+        ["SON"] = "#fb923c", ["TAH"] = "#a78bfa"
+    };
+
+    static string GetRouteColor(string dep, string arr)
+    {
+        if (RouteColors.TryGetValue(arr, out var c)) return c;
+        if (RouteColors.TryGetValue(dep, out c)) return c;
+        return "#64748b";
+    }
+
+    static string HoursToHHMM(double h)
+    {
+        var hours = (int)h;
+        var minutes = (int)Math.Round((h - hours) * 60);
+        return $"{hours}h{minutes:D2}";
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        semaines = await Mediator.Send(new GetAllSemainesTypesQuery());
+        allBlocs = await Mediator.Send(new GetAllBlocsVolQuery());
+        allVols = await Mediator.Send(new GetAllVolsQuery());
+        blocLookup = allBlocs.ToDictionary(b => b.Id);
+        volLookup = allVols.ToDictionary(v => v.Id);
+    }
+
+    void OpenCreate()
+    {
+        editError = null;
+        editId = null;
+        newPlacementJour = null;
+        newPlacementSequence = 1;
+        newPlacementBlocId = null;
+        popupTitle = "Nouvelle semaine type";
+        editModel = new SemaineEdit();
+        editPopupVisible = true;
+    }
+
+    void OpenEdit(SemaineTypeDto s)
+    {
+        editError = null;
+        editId = s.Id;
+        newPlacementJour = null;
+        newPlacementSequence = 1;
+        newPlacementBlocId = null;
+        popupTitle = "Modifier la semaine type";
+        editModel = new SemaineEdit
+        {
+            Reference = s.Reference,
+            Saison = s.Saison,
+            Placements = s.Placements
+                .Select(p => new PlacementEdit { Jour = p.Jour, Sequence = p.Sequence, BlocId = p.BlocId })
+                .ToList()
+        };
+        editPopupVisible = true;
+    }
+
+    void AddPlacement()
+    {
+        if (editModel is not null && !string.IsNullOrEmpty(newPlacementJour) && newPlacementBlocId.HasValue)
+        {
+            editModel.Placements.Add(new PlacementEdit
+            {
+                Jour = newPlacementJour,
+                Sequence = newPlacementSequence,
+                BlocId = newPlacementBlocId.Value
+            });
+            newPlacementJour = null;
+            newPlacementSequence = 1;
+            newPlacementBlocId = null;
+        }
+    }
+
+    async Task SaveSemaine()
+    {
+        if (editModel is null) return;
+        try
+        {
+            editError = null;
+            isSaving = true;
+            var placements = editModel.Placements
+                .Select(p => new BlocPlacementDto(p.BlocId, p.Jour, p.Sequence))
+                .ToList();
+
+            if (editId is null)
+            {
+                await Mediator.Send(new CreateSemaineTypeCommand(
+                    editModel.Reference, editModel.Saison, placements));
+            }
+            else
+            {
+                await Mediator.Send(new UpdateSemaineTypeCommand(
+                    editId.Value, editModel.Reference, editModel.Saison, placements));
+            }
+            semaines = await Mediator.Send(new GetAllSemainesTypesQuery());
+            editPopupVisible = false;
+        }
+        catch (Application.Common.Exceptions.ValidationException ex)
+        {
+            editError = string.Join(" — ", ex.Errors.SelectMany(kv => kv.Value));
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    void OpenDelete(SemaineTypeDto s)
+    {
+        deleteTarget = s;
+        deletePopupVisible = true;
+    }
+
+    async Task ConfirmDelete()
+    {
+        if (deleteTarget is null) return;
+        try
+        {
+            isDeleting = true;
+            await Mediator.Send(new DeleteSemaineTypeCommand(deleteTarget.Id));
+            semaines = await Mediator.Send(new GetAllSemainesTypesQuery());
+            deletePopupVisible = false;
+        }
+        catch (Exception ex)
+        {
+            editError = ex.Message;
+        }
+        finally
+        {
+            isDeleting = false;
+        }
+    }
+
+    class SemaineEdit
+    {
+        public string Reference { get; set; } = "";
+        public string Saison { get; set; } = "";
+        public List<PlacementEdit> Placements { get; set; } = [];
+    }
+
+    class PlacementEdit
+    {
+        public string Jour { get; set; } = "";
+        public int Sequence { get; set; }
+        public Guid BlocId { get; set; }
+    }
+}

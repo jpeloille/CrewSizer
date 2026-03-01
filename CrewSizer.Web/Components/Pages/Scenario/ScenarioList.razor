@@ -1,0 +1,222 @@
+@page "/scenario"
+@inject IMediator Mediator
+@inject NavigationManager Nav
+@inject ActiveScenarioService ActiveScenario
+
+<PageTitle>Scénarios — CrewSizer</PageTitle>
+
+<div class="page-fill">
+<h3>Scénarios</h3>
+
+<DxGrid @ref="grid" Data="scenarios" CssClass="grid-fill"
+        VirtualScrollingEnabled="true"
+        KeyFieldName="Id"
+        SelectionMode="GridSelectionMode.Single"
+        @bind-SelectedDataItem="selectedItem">
+    <ToolbarTemplate>
+        <DxToolbar>
+            <DxToolbarItem Text="Nouveau"
+                           Click="ShowCreatePopup"
+                           RenderStyle="ButtonRenderStyle.Primary" />
+            <DxToolbarItem Text="Dupliquer"
+                           Click="ShowClonePopup"
+                           Enabled="selectedItem is not null" />
+            <DxToolbarItem Text="Supprimer"
+                           Click="DeleteSelected"
+                           Enabled="selectedItem is not null"
+                           RenderStyle="ButtonRenderStyle.Danger" />
+        </DxToolbar>
+    </ToolbarTemplate>
+    <Columns>
+        <DxGridDataColumn FieldName="Nom" Caption="Nom" />
+        <DxGridDataColumn FieldName="DateDebut" Caption="Début" Width="100px" DisplayFormat="dd/MM/yyyy" />
+        <DxGridDataColumn FieldName="DateFin" Caption="Fin" Width="100px" DisplayFormat="dd/MM/yyyy" />
+        <DxGridDataColumn FieldName="Description" Caption="Description" />
+        <DxGridDataColumn FieldName="DateModification" Caption="Modifié le" Width="160px" DisplayFormat="dd/MM/yyyy HH:mm" />
+        <DxGridDataColumn FieldName="ModifiePar" Caption="Par" Width="100px" />
+    </Columns>
+</DxGrid>
+</div>
+
+@* Popup Nouveau scénario *@
+<DxPopup @bind-Visible="showCreatePopup" HeaderText="Nouveau scénario"
+         CloseOnOutsideClick="false" Width="420px">
+    <BodyContentTemplate Context="popupCtx">
+        <div class="space-y-4">
+            <div class="space-y-2">
+                <label class="text-sm font-medium text-foreground">Nom</label>
+                <input type="text" class="cs-input" @bind="createNom" placeholder="Mon scénario" />
+            </div>
+            <div class="space-y-2">
+                <label class="text-sm font-medium text-foreground">Description</label>
+                <input type="text" class="cs-input" @bind="createDescription" />
+            </div>
+            @if (popupError is not null)
+            {
+                <div class="cs-alert-error">@popupError</div>
+            }
+        </div>
+        <div class="mt-5 flex justify-end gap-2">
+            <button class="cs-btn cs-btn-secondary" @onclick="@(() => showCreatePopup = false)"
+                    disabled="@isCreating">Annuler</button>
+            <button class="cs-btn cs-btn-primary" @onclick="CreateScenario"
+                    disabled="@(isCreating || string.IsNullOrWhiteSpace(createNom))">
+                @(isCreating ? "Création..." : "Créer")
+            </button>
+        </div>
+    </BodyContentTemplate>
+</DxPopup>
+
+@* Popup Dupliquer *@
+<DxPopup @bind-Visible="showClonePopup" HeaderText="Dupliquer le scénario"
+         CloseOnOutsideClick="false" Width="420px">
+    <BodyContentTemplate Context="popupCtx">
+        <div class="space-y-4">
+            <div class="space-y-2">
+                <label class="text-sm font-medium text-foreground">Nouveau nom</label>
+                <input type="text" class="cs-input" @bind="cloneNom" />
+            </div>
+            @if (popupError is not null)
+            {
+                <div class="cs-alert-error">@popupError</div>
+            }
+        </div>
+        <div class="mt-5 flex justify-end gap-2">
+            <button class="cs-btn cs-btn-secondary" @onclick="@(() => showClonePopup = false)"
+                    disabled="@isCloning">Annuler</button>
+            <button class="cs-btn cs-btn-primary" @onclick="CloneScenario"
+                    disabled="@(isCloning || string.IsNullOrWhiteSpace(cloneNom))">
+                @(isCloning ? "Duplication..." : "Dupliquer")
+            </button>
+        </div>
+    </BodyContentTemplate>
+</DxPopup>
+
+@* Popup confirmation suppression *@
+<ConfirmPopup @bind-Visible="showDeleteConfirm"
+              Title="Supprimer le scénario"
+              Description="@($"Supprimer \"{(selectedItem as ScenarioListItemDto)?.Nom}\" ? Les snapshots associés seront aussi supprimés. Cette action est irréversible.")"
+              OnConfirm="ConfirmDelete"
+              OnCancel="@(() => showDeleteConfirm = false)"
+              Loading="isDeleting" />
+
+@code {
+    IGrid grid = default!;
+    List<ScenarioListItemDto> scenarios = [];
+    object? selectedItem;
+
+    bool showCreatePopup;
+    string createNom = "";
+    string? createDescription;
+    bool isCreating;
+
+    bool showClonePopup;
+    string cloneNom = "";
+    bool isCloning;
+
+    bool showDeleteConfirm;
+    bool isDeleting;
+    string? popupError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        scenarios = await Mediator.Send(new GetAllScenariosQuery());
+    }
+
+    void ShowCreatePopup()
+    {
+        createNom = "";
+        createDescription = null;
+        popupError = null;
+        isCreating = false;
+        showCreatePopup = true;
+    }
+
+    async Task CreateScenario()
+    {
+        try
+        {
+            popupError = null;
+            isCreating = true;
+            var dto = await Mediator.Send(new CreateScenarioCommand(createNom, createDescription, null));
+            showCreatePopup = false;
+            Nav.NavigateTo($"/scenario/{dto.Id}");
+        }
+        catch (Application.Common.Exceptions.ValidationException ex)
+        {
+            popupError = string.Join(" — ", ex.Errors.SelectMany(kv => kv.Value));
+        }
+        finally
+        {
+            isCreating = false;
+        }
+    }
+
+    void ShowClonePopup()
+    {
+        if (selectedItem is ScenarioListItemDto sel)
+        {
+            cloneNom = $"{sel.Nom} (copie)";
+            popupError = null;
+            isCloning = false;
+            showClonePopup = true;
+        }
+    }
+
+    async Task CloneScenario()
+    {
+        if (selectedItem is ScenarioListItemDto sel)
+        {
+            try
+            {
+                popupError = null;
+                isCloning = true;
+                var dto = await Mediator.Send(new CloneScenarioCommand(sel.Id, cloneNom, null));
+                showClonePopup = false;
+                Nav.NavigateTo($"/scenario/{dto.Id}");
+            }
+            catch (Application.Common.Exceptions.ValidationException ex)
+            {
+                popupError = string.Join(" — ", ex.Errors.SelectMany(kv => kv.Value));
+            }
+            finally
+            {
+                isCloning = false;
+            }
+        }
+    }
+
+    void DeleteSelected()
+    {
+        if (selectedItem is not null)
+        {
+            isDeleting = false;
+            showDeleteConfirm = true;
+        }
+    }
+
+    async Task ConfirmDelete()
+    {
+        if (selectedItem is ScenarioListItemDto sel)
+        {
+            try
+            {
+                isDeleting = true;
+                await Mediator.Send(new DeleteScenarioCommand(sel.Id));
+                showDeleteConfirm = false;
+                selectedItem = null;
+                if (ActiveScenario.ScenarioId == sel.Id)
+                    ActiveScenario.Clear();
+                scenarios = await Mediator.Send(new GetAllScenariosQuery());
+            }
+            catch (Exception ex)
+            {
+                popupError = ex.Message;
+            }
+            finally
+            {
+                isDeleting = false;
+            }
+        }
+    }
+}

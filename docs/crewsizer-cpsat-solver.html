@@ -1,0 +1,1355 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="author" content="Julien PELOILLE">
+<meta name="description" content="Documentation technique du module de dimensionnement CP-SAT — CrewSizer">
+<meta name="robots" content="noindex, nofollow">
+<title>CrewSizer — Module de Dimensionnement CP-SAT</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --bg-card: #1a1d27;
+    --bg-code: #151820;
+    --border: #2a2e3a;
+    --text: #e1e4ed;
+    --text-muted: #8b90a0;
+    --primary: #6c8cff;
+    --accent: #38bdf8;
+    --green: #4ade80;
+    --amber: #fbbf24;
+    --red: #f87171;
+    --cyan: #22d3ee;
+    --purple: #a78bfa;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    padding: 0;
+  }
+  .container { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+  /* Header */
+  .header {
+    background: linear-gradient(135deg, #1a1d27 0%, #0f1117 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 3rem 0 2rem;
+    text-align: center;
+  }
+  .header h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--primary);
+    letter-spacing: -0.5px;
+  }
+  .header .subtitle {
+    color: var(--text-muted);
+    font-size: 1rem;
+    margin-top: 0.5rem;
+  }
+  .header .copyright-badge {
+    display: inline-block;
+    margin-top: 1rem;
+    padding: 0.3rem 1rem;
+    background: var(--bg-code);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-family: 'SF Mono', 'Fira Code', monospace;
+  }
+
+  /* TOC */
+  .toc {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.5rem 2rem;
+    margin: 2rem 0;
+  }
+  .toc h2 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 1rem; }
+  .toc ol { padding-left: 1.2rem; }
+  .toc li { margin: 0.4rem 0; }
+  .toc a { color: var(--primary); text-decoration: none; font-size: 0.9rem; }
+  .toc a:hover { text-decoration: underline; }
+
+  /* Sections */
+  h2 {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--primary);
+    margin: 3rem 0 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+  h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--accent);
+    margin: 2rem 0 0.8rem;
+  }
+  h4 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text);
+    margin: 1.5rem 0 0.5rem;
+  }
+  p { margin: 0.8rem 0; }
+
+  /* Code */
+  code {
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.85em;
+    background: var(--bg-code);
+    border: 1px solid var(--border);
+    padding: 0.15em 0.4em;
+    border-radius: 4px;
+    color: var(--cyan);
+  }
+  pre {
+    background: var(--bg-code);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.2rem 1.5rem;
+    overflow-x: auto;
+    margin: 1rem 0;
+    font-size: 0.82rem;
+    line-height: 1.6;
+  }
+  pre code {
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--text);
+  }
+  .kw { color: var(--purple); font-weight: 600; }
+  .tp { color: var(--accent); }
+  .cm { color: var(--text-muted); font-style: italic; }
+  .str { color: var(--green); }
+  .num { color: var(--amber); }
+  .fn { color: #dcdcaa; }
+
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+    font-size: 0.88rem;
+  }
+  th {
+    background: var(--bg-card);
+    color: var(--primary);
+    font-weight: 600;
+    text-align: left;
+    padding: 0.7rem 1rem;
+    border-bottom: 2px solid var(--border);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  td {
+    padding: 0.6rem 1rem;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  tr:hover td { background: rgba(108, 140, 255, 0.04); }
+
+  /* Cards */
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin: 1rem 0;
+  }
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem;
+    margin: 1rem 0;
+  }
+
+  /* Constraint boxes */
+  .constraint {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--primary);
+    border-radius: 0 8px 8px 0;
+    padding: 1.2rem 1.5rem;
+    margin: 1.5rem 0;
+  }
+  .constraint .cid {
+    display: inline-block;
+    background: var(--primary);
+    color: var(--bg);
+    font-weight: 700;
+    font-size: 0.75rem;
+    padding: 0.15rem 0.6rem;
+    border-radius: 4px;
+    margin-right: 0.5rem;
+    font-family: 'SF Mono', monospace;
+  }
+  .constraint .cname {
+    font-weight: 600;
+    color: var(--text);
+  }
+  .formula {
+    display: block;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.8rem 1.2rem;
+    margin: 0.8rem 0;
+    font-family: 'SF Mono', monospace;
+    font-size: 0.9rem;
+    color: var(--cyan);
+    text-align: center;
+    letter-spacing: 0.5px;
+  }
+
+  /* Badges */
+  .badge {
+    display: inline-block;
+    padding: 0.1rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    font-family: 'SF Mono', monospace;
+  }
+  .badge-blue { background: rgba(108, 140, 255, 0.15); color: var(--primary); }
+  .badge-green { background: rgba(74, 222, 128, 0.15); color: var(--green); }
+  .badge-amber { background: rgba(251, 191, 36, 0.15); color: var(--amber); }
+  .badge-red { background: rgba(248, 113, 113, 0.15); color: var(--red); }
+  .badge-cyan { background: rgba(34, 211, 238, 0.15); color: var(--cyan); }
+  .badge-purple { background: rgba(167, 139, 250, 0.15); color: var(--purple); }
+  .badge-teal { background: rgba(45, 212, 191, 0.15); color: #2dd4bf; }
+
+  /* Source dictionary cards */
+  .dict-section {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin: 1.5rem 0;
+    overflow: hidden;
+  }
+  .dict-header {
+    padding: 1rem 1.5rem;
+    font-weight: 700;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+  }
+  .dict-header-oro { background: rgba(108, 140, 255, 0.1); color: var(--primary); border-bottom: 2px solid var(--primary); }
+  .dict-header-conv { background: rgba(167, 139, 250, 0.1); color: var(--purple); border-bottom: 2px solid var(--purple); }
+  .dict-header-delib { background: rgba(45, 212, 191, 0.1); color: #2dd4bf; border-bottom: 2px solid #2dd4bf; }
+  .dict-header-struct { background: rgba(139, 144, 160, 0.1); color: var(--text-muted); border-bottom: 2px solid var(--text-muted); }
+  .dict-body { padding: 0; }
+  .dict-body table { margin: 0; }
+  .dict-body td:first-child { white-space: nowrap; }
+
+  /* Diagram */
+  .diagram {
+    background: var(--bg-code);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin: 1.5rem 0;
+    font-family: 'SF Mono', monospace;
+    font-size: 0.8rem;
+    line-height: 1.5;
+    white-space: pre;
+    overflow-x: auto;
+    color: var(--text-muted);
+    text-align: center;
+  }
+
+  /* Legal */
+  .legal {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 2rem;
+    margin: 3rem 0;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    line-height: 1.8;
+  }
+  .legal h2 { color: var(--red); border-color: var(--red); }
+  .legal strong { color: var(--text); }
+
+  /* Footer */
+  .footer {
+    text-align: center;
+    padding: 2rem 0;
+    border-top: 1px solid var(--border);
+    margin-top: 3rem;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+  }
+
+  /* Print */
+  @media print {
+    body { background: #fff; color: #111; }
+    .header { background: #fff; border-color: #ccc; }
+    .header h1 { color: #1a1a5e; }
+    code { background: #f5f5f5; border-color: #ddd; color: #0066cc; }
+    pre { background: #f8f8f8; border-color: #ddd; }
+    pre code { color: #111; }
+    .constraint { border-color: #ccc; border-left-color: #1a1a5e; background: #fafafa; }
+    .formula { background: #f5f5f5; border-color: #ddd; color: #0066cc; }
+    th { background: #f0f0f0; color: #1a1a5e; }
+    td { border-color: #ddd; }
+    .card, .toc, .legal { background: #fafafa; border-color: #ddd; }
+    .diagram { background: #f8f8f8; border-color: #ddd; color: #333; }
+    .badge-blue { background: #e8eeff; color: #1a1a5e; }
+    .badge-green { background: #e8ffe8; color: #166534; }
+    .badge-amber { background: #fff8e8; color: #854d0e; }
+    .badge-red { background: #ffe8e8; color: #991b1b; }
+    .badge-cyan { background: #e8fffe; color: #0e7490; }
+    a { color: #0066cc; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- EN-TETE                                                    -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+
+<header class="header">
+  <div class="container">
+    <h1>CrewSizer — Module de Dimensionnement CP-SAT</h1>
+    <p class="subtitle">Documentation technique du solver d'optimisation d'effectif navigant</p>
+    <span class="copyright-badge">&copy; 2026 Julien PELOILLE &mdash; Tous droits r&eacute;serv&eacute;s</span>
+  </div>
+</header>
+
+<div class="container">
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- TABLE DES MATIERES                                         -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+
+<nav class="toc">
+  <h2>Table des mati&egrave;res</h2>
+  <ol>
+    <li><a href="#overview">Vue d'ensemble</a></li>
+    <li><a href="#architecture">Architecture et flux de donn&eacute;es</a></li>
+    <li><a href="#inputs">Donn&eacute;es d'entr&eacute;e</a></li>
+    <li><a href="#variables">Variables de d&eacute;cision</a></li>
+    <li><a href="#objective">Fonction objectif</a></li>
+    <li><a href="#constraints">Contraintes (C1&ndash;C14)</a></li>
+    <li><a href="#dictionaries">Dictionnaires de contraintes par source r&eacute;glementaire</a></li>
+    <li><a href="#polyvalence">Polyvalence CC&rarr;PNC</a></li>
+    <li><a href="#results">R&eacute;sultats du solver</a></li>
+    <li><a href="#binding">Analyse de la contrainte mordante</a></li>
+    <li><a href="#legal">Mentions l&eacute;gales</a></li>
+  </ol>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- 1. VUE D'ENSEMBLE                                          -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+
+<h2 id="overview">1. Vue d'ensemble</h2>
+
+<p>
+  Le module de dimensionnement CP-SAT de CrewSizer r&eacute;pond &agrave; la question fondamentale :
+</p>
+<div class="card" style="text-align:center; font-size:1.1rem; font-weight:600; color:var(--accent);">
+  &laquo; Quel est l'effectif navigant <em>minimum</em> n&eacute;cessaire pour couvrir
+  le programme commercial, en respectant toutes les contraintes FTL ? &raquo;
+</div>
+
+<p>
+  Le solver utilise <strong>Google OR-Tools CP-SAT</strong> (Constraint Programming with Boolean Satisfiability),
+  un solveur d'optimisation combinatoire de classe industrielle. Il mod&eacute;lise le probl&egrave;me comme un
+  programme lin&eacute;aire en variables binaires, o&ugrave; chaque d&eacute;cision (affecter un navigant &agrave;
+  un bloc un jour donn&eacute;) est une variable 0/1.
+</p>
+
+<div class="card-grid">
+  <div class="card">
+    <h4>Entr&eacute;e</h4>
+    <p>Programme de vols r&eacute;solu jour par jour + effectif disponible + r&egrave;gles FTL</p>
+  </div>
+  <div class="card">
+    <h4>Traitement</h4>
+    <p>Optimisation sous contraintes : minimiser le nombre de navigants utilis&eacute;s</p>
+  </div>
+  <div class="card">
+    <h4>Sortie</h4>
+    <p>Effectif minimum par rang, marge, jours critiques, contrainte mordante, planning</p>
+  </div>
+</div>
+
+<p>
+  Le solver est ex&eacute;cut&eacute; <strong>deux fois</strong> : une fois pour les PNT (Personnel Navigant Technique &mdash;
+  pilotes CDB/OPL) et une fois pour les PNC (Personnel Navigant Commercial &mdash; CC/PNC).
+  Les r&eacute;sultats sont combin&eacute;s dans un <code>CombinedSizingResult</code>.
+</p>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- 2. ARCHITECTURE                                            -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+
+<h2 id="architecture">2. Architecture et flux de donn&eacute;es</h2>
+
+<div class="diagram">
+<span style="color:var(--amber)">RunSizingCommand</span> (MediatR CQRS)
+        &darr;
+   Chargement BDD
+   &bull; Sc&eacute;nario + P&eacute;riode
+   &bull; Membres &eacute;quipage (actifs)
+   &bull; Indisponibilit&eacute;s
+   &bull; Blocs + TypeAvion
+   &bull; Semaines types + Calendrier
+        &darr;
+   R&eacute;solution programme jour/jour
+   (Calendrier &rarr; SemaineType &rarr; BlocVol)
+        &darr;
+  <span style="color:var(--primary)">SizingRequest</span>
+  &bull; DailyPrograms [BlockInfo...]
+  &bull; AvailableCrew [CrewMemberInfo...]
+  &bull; FtlRules
+        &darr;
+  ┌────────────────────────┐
+  &boxv; <span style="color:var(--cyan)">OrToolsSizingSolver</span>     &boxv;
+  &boxv;  CP-SAT (OR-Tools)     &boxv;
+  &boxv;  Minimize(sum(isUsed)) &boxv;
+  &boxv;  14 contraintes FTL    &boxv;
+  └────────────────────────┘
+        &darr;
+  <span style="color:var(--green)">SizingResult</span>
+  &bull; MinimumCrewByRank
+  &bull; MarginByRank
+  &bull; CriticalDays
+  &bull; BindingConstraint
+  &bull; Assignments
+</div>
+
+<p>
+  Le handler <code>RunSizingHandler</code> charge toutes les donn&eacute;es depuis PostgreSQL via Entity Framework Core,
+  r&eacute;sout le programme jour par jour (calendrier &rarr; semaine type &rarr; blocs), puis construit le
+  <code>SizingRequest</code>. Chaque <code>BlockInfo</code> porte les besoins en &eacute;quipage issus du
+  <code>TypeAvion</code> associ&eacute; au bloc.
+</p>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- 3. DONNEES D'ENTREE                                        -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+
+<h2 id="inputs">3. Donn&eacute;es d'entr&eacute;e</h2>
+
+<h3>3.1 SizingRequest</h3>
+<table>
+  <tr><th>Champ</th><th>Type</th><th>Description</th></tr>
+  <tr><td><code>StartDate</code>, <code>EndDate</code></td><td>DateOnly</td><td>Horizon de planification (ex: 1er&ndash;31 mars 2026)</td></tr>
+  <tr><td><code>DailyPrograms</code></td><td>List&lt;DailyProgram&gt;</td><td>Programme r&eacute;solu : pour chaque jour, la liste des blocs &agrave; couvrir</td></tr>
+  <tr><td><code>AvailableCrew</code></td><td>List&lt;CrewMemberInfo&gt;</td><td>Navigants disponibles (actifs, non en cong&eacute; impos&eacute;)</td></tr>
+  <tr><td><code>FtlRules</code></td><td>FtlRules</td><td>R&egrave;gles FTL applicables (15+ param&egrave;tres)</td></tr>
+  <tr><td><code>Category</code></td><td>CrewCategory</td><td><span class="badge badge-blue">PNT</span> ou <span class="badge badge-green">PNC</span></td></tr>
+  <tr><td><code>TimeoutSeconds</code></td><td>int</td><td>Timeout du solver (d&eacute;faut: 30s)</td></tr>
+  <tr><td><code>NumWorkers</code></td><td>int</td><td>Workers parall&egrave;les (d&eacute;faut: nb CPUs)</td></tr>
+</table>
+
+<h3>3.2 BlockInfo</h3>
+<p>Chaque bloc de vols porte les informations temporelles et les besoins en &eacute;quipage issus du <code>TypeAvion</code> :</p>
+<table>
+  <tr><th>Champ</th><th>Description</th></tr>
+  <tr><td><code>Code</code></td><td>Identifiant du bloc (ex: BM1, BA1)</td></tr>
+  <tr><td><code>SectorCount</code></td><td>Nombre d'&eacute;tapes (vols) dans le bloc</td></tr>
+  <tr><td><code>BlockTimeMinutes</code></td><td>Heures de vol bloc (HDV) en minutes</td></tr>
+  <tr><td><code>DpStartMinutes</code>, <code>DpEndMinutes</code></td><td>D&eacute;but/fin du Duty Period (DP) en minutes depuis 00:00</td></tr>
+  <tr><td><code>FdpStartMinutes</code>, <code>FdpEndMinutes</code></td><td>D&eacute;but/fin du Flight Duty Period (FDP)</td></tr>
+  <tr><td><code>DutyMinutes</code></td><td>Dur&eacute;e DP = DpEnd &minus; DpStart (calcul&eacute;)</td></tr>
+  <tr><td><code>RequiredCdb</code></td><td>Nb CDB requis (TypeAvion.NbCdb, d&eacute;faut: 1)</td></tr>
+  <tr><td><code>RequiredOpl</code></td><td>Nb OPL requis (TypeAvion.NbOpl, d&eacute;faut: 1)</td></tr>
+  <tr><td><code>RequiredCc</code></td><td>Nb CC requis (TypeAvion.NbCc, d&eacute;faut: 1)</td></tr>
+  <tr><td><code>RequiredPnc</code></td><td>Nb PNC requis (TypeAvion.NbPnc, d&eacute;faut: 0)</td></tr>
+</table>
+
+<h3>3.3 FtlRules</h3>
+<table>
+  <tr><th>Param&egrave;tre</th><th>D&eacute;faut</th><th>Description</th></tr>
+  <tr><td><code>MaxDuty7dMinutes</code></td><td>3 600 (60h)</td><td>Temps de service max / 7 jours glissants</td></tr>
+  <tr><td><code>MaxDuty14dMinutes</code></td><td>6 600 (110h)</td><td>Temps de service max / 14 jours glissants</td></tr>
+  <tr><td><code>MaxDuty28dMinutes</code></td><td>11 400 (190h)</td><td>Temps de service max / 28 jours glissants</td></tr>
+  <tr><td><code>MaxHdv28dMinutes</code></td><td>6 000 (100h)</td><td>HDV max / 28 jours glissants</td></tr>
+  <tr><td><code>MinDaysOffPerMonth</code></td><td>8</td><td>Jours OFF minimum / 28 jours</td></tr>
+  <tr><td><code>MinRestMinutes</code></td><td>720 (12h)</td><td>Repos minimum entre 2 services</td></tr>
+  <tr><td><code>MaxConsecutiveWorkDays</code></td><td>6</td><td>Max jours ON cons&eacute;cutifs</td></tr>
+  <tr><td><code>MinRestDaysPerPeriod</code></td><td>2</td><td>Repos minimum en jours cons&eacute;cutifs</td></tr>
+  <tr><td><code>WeeklyRestNights</code></td><td>2</td><td>Nuit&eacute;es locales / repos hebdomadaire</td></tr>
+  <tr><td><code>MonthlyWeekendRestRequired</code></td><td>true</td><td>Repos mensuel week-end obligatoire</td></tr>
+  <tr><td><code>MonthlyWeekendRestDays</code></td><td>3</td><td>Dur&eacute;e repos week-end (3 jours)</td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- 4. VARIABLES DE DECISION                                   -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+
+<h2 id="variables">4. Variables de d&eacute;cision</h2>
+
+<p>Le mod&egrave;le CP-SAT repose sur trois familles de variables binaires :</p>
+
+<div class="constraint">
+  <span class="badge badge-cyan">assign[c, d, b]</span>
+  <span class="cname">&isin; {0, 1}</span>
+  <p style="margin-top:0.5rem">Vaut <strong>1</strong> si le navigant <em>c</em> est affect&eacute; au bloc <em>b</em> le jour <em>d</em>.</p>
+  <p><em>Dimension : numCrew &times; numDays &times; numBlocs(jour)</em></p>
+</div>
+
+<div class="constraint">
+  <span class="badge badge-green">works[c, d]</span>
+  <span class="cname">&isin; {0, 1}</span>
+  <p style="margin-top:0.5rem">Vaut <strong>1</strong> si le navigant <em>c</em> travaille le jour <em>d</em> (affect&eacute; &agrave; au moins un bloc).</p>
+  <p><em>Dimension : numCrew &times; numDays</em></p>
+</div>
+
+<div class="constraint">
+  <span class="badge badge-amber">isUsed[c]</span>
+  <span class="cname">&isin; {0, 1}</span>
+  <p style="margin-top:0.5rem">Vaut <strong>1</strong> si le navigant <em>c</em> est utilis&eacute; au moins une fois sur toute la p&eacute;riode.</p>
+  <p><em>Dimension : numCrew</em></p>
+</div>
+
+<p>Les liens entre ces variables sont &eacute;tablis par les contraintes C2 et C3.</p>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- 5. FONCTION OBJECTIF                                       -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+
+<h2 id="objective">5. Fonction objectif</h2>
+
+<div class="formula">
+  Minimiser &nbsp;&nbsp; &Sigma;<sub>c=0</sub><sup>N-1</sup> isUsed[c]
+</div>
+
+<p>
+  Le solver cherche &agrave; <strong>minimiser le nombre total de navigants utilis&eacute;s</strong>
+  tout en satisfaisant toutes les contraintes FTL. Le r&eacute;sultat est l'effectif
+  <strong>strictement minimum</strong> n&eacute;cessaire pour couvrir le programme commercial.
+</p>
+
+<pre><code><span class="cm">// Ligne 289 — OrToolsSizingSolver.cs</span>
+model.<span class="fn">Minimize</span>(<span class="tp">LinearExpr</span>.<span class="fn">Sum</span>(isUsed));</code></pre>
+
+<p>
+  Si le solver trouve une solution optimale (<code>Status = Optimal</code>), l'effectif retourn&eacute;
+  est garanti minimal. Si le solver atteint le timeout avec une solution r&eacute;alisable
+  (<code>Status = Feasible</code>), la solution est valide mais pas n&eacute;cessairement optimale.
+</p>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- 6. CONTRAINTES                                             -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+
+<h2 id="constraints">6. Contraintes (C1&ndash;C14)</h2>
+
+<p>
+  Toutes les contraintes sont <strong>dures</strong> (hard constraints) : le solver ne peut pas les violer.
+  Si aucune solution ne respecte toutes les contraintes, le probl&egrave;me est d&eacute;clar&eacute;
+  <span class="badge badge-red">Infeasible</span>.
+</p>
+
+<!-- C1 -->
+<div class="constraint">
+  <span class="cid">C1</span>
+  <span class="cname">Indisponibilit&eacute;s (cong&eacute;s, formation)</span>
+  <div class="formula">
+    Si le navigant c est indisponible le jour d : &nbsp; assign[c, d, b] = 0 &nbsp; &forall; b
+  </div>
+  <p>
+    Un navigant en cong&eacute;, en formation ou en arr&ecirc;t ne peut pas &ecirc;tre affect&eacute;
+    &agrave; un bloc ce jour-l&agrave;. Les dates d'indisponibilit&eacute; sont charg&eacute;es depuis la BDD.
+  </p>
+  <pre><code><span class="kw">if</span> (crewByIndex[c].UnavailableDates.<span class="fn">Contains</span>(date))
+    model.<span class="fn">Add</span>(assign[c][d][b] == <span class="num">0</span>);</code></pre>
+</div>
+
+<!-- C2 -->
+<div class="constraint">
+  <span class="cid">C2</span>
+  <span class="cname">Maximum 1 bloc par navigant par jour</span>
+  <div class="formula">
+    &Sigma;<sub>b</sub> assign[c, d, b] &le; 1 &nbsp;&nbsp; &forall; c, d
+  </div>
+  <p>
+    Un navigant ne peut &ecirc;tre affect&eacute; qu'&agrave; un seul bloc par jour.
+    Cette contrainte lie &eacute;galement <code>works[c,d]</code> &agrave; <code>assign[c,d,*]</code> :
+    <code>works[c,d] = 1</code> ssi au moins un <code>assign[c,d,b] = 1</code>.
+  </p>
+  <pre><code>model.<span class="fn">Add</span>(<span class="tp">LinearExpr</span>.<span class="fn">Sum</span>(blockVars) &lt;= <span class="num">1</span>);
+model.<span class="fn">Add</span>(<span class="tp">LinearExpr</span>.<span class="fn">Sum</span>(blockVars) &gt;= <span class="num">1</span>).<span class="fn">OnlyEnforceIf</span>(works[c][d]);
+model.<span class="fn">Add</span>(<span class="tp">LinearExpr</span>.<span class="fn">Sum</span>(blockVars) == <span class="num">0</span>).<span class="fn">OnlyEnforceIf</span>(works[c][d].<span class="fn">Not</span>());</code></pre>
+</div>
+
+<!-- C3 -->
+<div class="constraint">
+  <span class="cid">C3</span>
+  <span class="cname">Lien isUsed &harr; works</span>
+  <div class="formula">
+    isUsed[c] = max(works[c, 0], works[c, 1], ..., works[c, D-1])
+  </div>
+  <p>
+    Le navigant est marqu&eacute; &laquo; utilis&eacute; &raquo; d&egrave;s qu'il travaille au moins un jour.
+    C'est cette variable qui est minimis&eacute;e dans la fonction objectif.
+  </p>
+  <pre><code>model.<span class="fn">AddMaxEquality</span>(isUsed[c], works[c]);</code></pre>
+</div>
+
+<!-- C4 PNT -->
+<div class="constraint">
+  <span class="cid">C4</span>
+  <span class="cname">Couverture des blocs &mdash; PNT (pilotes)</span>
+  <div class="formula">
+    &Sigma;<sub>c &isin; CDB</sub> assign[c, d, b] = RequiredCdb &nbsp;&nbsp; &forall; d, b
+  </div>
+  <div class="formula">
+    &Sigma;<sub>c &isin; OPL</sub> assign[c, d, b] = RequiredOpl &nbsp;&nbsp; &forall; d, b
+  </div>
+  <p>
+    Chaque bloc doit &ecirc;tre couvert par <strong>exactement</strong> le nombre requis de CDB et d'OPL.
+    Ces valeurs proviennent du <code>TypeAvion</code> du bloc (ex: ATR 72-600 &rarr; 1 CDB + 1 OPL).
+    L'&eacute;galit&eacute; stricte (&laquo; == &raquo;) garantit qu'on n'affecte ni trop ni trop peu de pilotes.
+  </p>
+  <pre><code><span class="kw">var</span> cdbVars = crewByRank[<span class="tp">CrewRank</span>.CDB]
+    .<span class="fn">Select</span>(c =&gt; assign[c][d][b]).<span class="fn">ToArray</span>();
+model.<span class="fn">Add</span>(<span class="tp">LinearExpr</span>.<span class="fn">Sum</span>(cdbVars) == block.RequiredCdb);</code></pre>
+</div>
+
+<!-- C4a PNC -->
+<div class="constraint">
+  <span class="cid">C4a</span>
+  <span class="cname">Couverture cabine &mdash; CC minimum</span>
+  <div class="formula">
+    &Sigma;<sub>c &isin; CC</sub> assign[c, d, b] &ge; RequiredCc &nbsp;&nbsp; &forall; d, b
+  </div>
+  <p>
+    Au moins <code>RequiredCc</code> chefs de cabine doivent &ecirc;tre affect&eacute;s &agrave; chaque bloc.
+    Un PNC ne peut <strong>pas</strong> remplacer un CC (le CC a des responsabilit&eacute;s sp&eacute;cifiques).
+  </p>
+</div>
+
+<!-- C4b PNC -->
+<div class="constraint">
+  <span class="cid">C4b</span>
+  <span class="cname">Couverture cabine &mdash; total (polyvalence CC&rarr;PNC)</span>
+  <div class="formula">
+    &Sigma;<sub>c &isin; CC &cup; PNC</sub> assign[c, d, b] &ge; RequiredCc + RequiredPnc &nbsp;&nbsp; &forall; d, b
+  </div>
+  <p>
+    Le nombre total de personnel cabine (CC + PNC) doit couvrir l'ensemble des besoins.
+    Un CC <strong>peut</strong> occuper un poste PNC (polyvalence), mais pas l'inverse.
+    Voir <a href="#polyvalence">section 8</a> pour le d&eacute;tail.
+  </p>
+  <pre><code><span class="kw">var</span> totalCabinRequired = block.RequiredCc + block.RequiredPnc;
+<span class="kw">var</span> allCabinVars = ccVars.<span class="fn">Concat</span>(pncVars).<span class="fn">ToArray</span>();
+model.<span class="fn">Add</span>(<span class="tp">LinearExpr</span>.<span class="fn">Sum</span>(allCabinVars) &gt;= totalCabinRequired);</code></pre>
+</div>
+
+<!-- C5 -->
+<div class="constraint">
+  <span class="cid">C5</span>
+  <span class="cname">Temps de service cumulatif &mdash; 7 jours glissants</span>
+  <span class="badge badge-blue">ORO.FTL</span>
+  <div class="formula">
+    &Sigma;<sub>d'=d</sub><sup>d+6</sup> &Sigma;<sub>b</sub> assign[c, d', b] &times; DutyMinutes(d', b) &le; 3 600 min (60h) &nbsp;&nbsp; &forall; c, d
+  </div>
+  <p>
+    Dans toute fen&ecirc;tre glissante de 7 jours, le temps de service cumul&eacute; d'un navigant
+    ne doit pas d&eacute;passer 60 heures.
+  </p>
+</div>
+
+<!-- C6 -->
+<div class="constraint">
+  <span class="cid">C6</span>
+  <span class="cname">Temps de service cumulatif &mdash; 14 jours glissants</span>
+  <span class="badge badge-blue">ORO.FTL</span>
+  <div class="formula">
+    &Sigma;<sub>d'=d</sub><sup>d+13</sup> &Sigma;<sub>b</sub> assign[c, d', b] &times; DutyMinutes(d', b) &le; 6 600 min (110h) &nbsp;&nbsp; &forall; c, d
+  </div>
+</div>
+
+<!-- C7 -->
+<div class="constraint">
+  <span class="cid">C7</span>
+  <span class="cname">Temps de service cumulatif &mdash; 28 jours glissants</span>
+  <span class="badge badge-blue">ORO.FTL</span>
+  <div class="formula">
+    &Sigma;<sub>d'=d</sub><sup>d+27</sup> &Sigma;<sub>b</sub> assign[c, d', b] &times; DutyMinutes(d', b) &le; 11 400 min (190h) &nbsp;&nbsp; &forall; c, d
+  </div>
+  <p>Activ&eacute; uniquement si l'horizon de planification couvre &ge; 28 jours.</p>
+</div>
+
+<!-- C8 -->
+<div class="constraint">
+  <span class="cid">C8</span>
+  <span class="cname">HDV cumulative &mdash; 28 jours glissants</span>
+  <span class="badge badge-blue">ORO.FTL</span>
+  <div class="formula">
+    &Sigma;<sub>d'=d</sub><sup>d+27</sup> &Sigma;<sub>b</sub> assign[c, d', b] &times; BlockTimeMinutes(d', b) &le; 6 000 min (100h) &nbsp;&nbsp; &forall; c, d
+  </div>
+  <p>
+    Heures de vol (HDV) cumul&eacute;es sur 28 jours glissants.
+    Distinct du temps de service (DP) : le HDV ne compte que le temps en vol,
+    pas la pr&eacute;paration ni le post-vol.
+  </p>
+</div>
+
+<!-- C9 -->
+<div class="constraint">
+  <span class="cid">C9</span>
+  <span class="cname">Jours OFF minimum &mdash; 28 jours</span>
+  <span class="badge badge-teal">D&eacute;lib. 77</span>
+  <div class="formula">
+    &Sigma;<sub>d'=d</sub><sup>d+27</sup> works[c, d'] &le; 20 &nbsp; (= 28 &minus; 8) &nbsp;&nbsp; &forall; c, d
+  </div>
+  <p>
+    Au moins 8 jours OFF par fen&ecirc;tre glissante de 28 jours
+    (soit maximum 20 jours travaill&eacute;s).
+  </p>
+</div>
+
+<!-- C10 -->
+<div class="constraint">
+  <span class="cid">C10</span>
+  <span class="cname">Repos minimum entre deux services</span>
+  <span class="badge badge-blue">ORO.FTL</span>
+  <div class="formula">
+    Si repos(bloc b1 jour d, bloc b2 jour d+1) &lt; 720 min (12h) :
+    &nbsp;&nbsp; assign[c, d, b1] + assign[c, d+1, b2] &le; 1
+  </div>
+  <p>
+    Si le repos entre la fin d'un bloc et le d&eacute;but du bloc suivant est inf&eacute;rieur &agrave; 12 heures,
+    le m&ecirc;me navigant ne peut pas &ecirc;tre affect&eacute; aux deux blocs cons&eacute;cutivement.
+  </p>
+  <pre><code><span class="kw">int</span> restMinutes = (<span class="num">24</span> * <span class="num">60</span> - endToday) + startTomorrow;
+<span class="kw">if</span> (restMinutes &lt; minRestMinutes)
+    model.<span class="fn">Add</span>(assign[c][d][b1] + assign[c][d + <span class="num">1</span>][b2] &lt;= <span class="num">1</span>);</code></pre>
+</div>
+
+<!-- C11a -->
+<div class="constraint">
+  <span class="cid">C11a</span>
+  <span class="cname">Maximum 6 jours cons&eacute;cutifs ON</span>
+  <span class="badge badge-teal">D&eacute;lib. 77</span>
+  <div class="formula">
+    &Sigma;<sub>d'=d</sub><sup>d+6</sup> works[c, d'] &le; 6 &nbsp;&nbsp; &forall; c, d
+  </div>
+  <p>
+    Dans toute fen&ecirc;tre de 7 jours cons&eacute;cutifs, il y a au moins 1 jour OFF.
+    Autrement dit : jamais plus de 6 jours travaill&eacute;s d'affil&eacute;e.
+  </p>
+</div>
+
+<!-- C11b -->
+<div class="constraint">
+  <span class="cid">C11b</span>
+  <span class="cname">Pas de jour OFF isol&eacute; (ON-OFF-ON interdit)</span>
+  <span class="badge badge-purple">Convention</span>
+  <div class="formula">
+    works[c, d&minus;1] &minus; works[c, d] + works[c, d+1] &le; 1 &nbsp;&nbsp; &forall; c, d
+  </div>
+  <p>
+    Le pattern ON-OFF-ON est interdit. Quand un navigant s'arr&ecirc;te, il doit s'arr&ecirc;ter
+    au moins 2 jours cons&eacute;cutifs. Un seul jour OFF entre deux jours ON ne constitue pas
+    un repos valide.
+  </p>
+  <table>
+    <tr><th>Pattern</th><th>Calcul</th><th>Valide ?</th></tr>
+    <tr><td>ON&ndash;OFF&ndash;ON</td><td>1 &minus; 0 + 1 = 2 &gt; 1</td><td><span class="badge badge-red">Interdit</span></td></tr>
+    <tr><td>ON&ndash;OFF&ndash;OFF</td><td>1 &minus; 0 + 0 = 1 &le; 1</td><td><span class="badge badge-green">OK</span></td></tr>
+    <tr><td>ON&ndash;ON&ndash;ON</td><td>1 &minus; 1 + 1 = 1 &le; 1</td><td><span class="badge badge-green">OK</span></td></tr>
+    <tr><td>OFF&ndash;OFF&ndash;ON</td><td>0 &minus; 0 + 1 = 1 &le; 1</td><td><span class="badge badge-green">OK</span></td></tr>
+  </table>
+</div>
+
+<!-- C12 -->
+<div class="constraint">
+  <span class="cid">C12</span>
+  <span class="cname">Repos hebdomadaire &mdash; 36h + 2 nuit&eacute;es / semaine civile</span>
+  <span class="badge badge-teal">D&eacute;lib. 77</span>
+  <div class="formula">
+    Par semaine civile (lundi&rarr;dimanche) : au moins 1 s&eacute;quence de 2 jours cons&eacute;cutifs OFF
+  </div>
+  <p>
+    Chaque semaine civile ISO (lundi au dimanche), le navigant doit b&eacute;n&eacute;ficier
+    d'un repos de 36 heures incluant 2 nuit&eacute;es locales cons&eacute;cutives.
+    En mod&eacute;lisation journali&egrave;re : 2 jours cons&eacute;cutifs OFF dans la semaine.
+  </p>
+  <p>
+    <em>Distinction avec C11 :</em> C11 est une fen&ecirc;tre <strong>glissante</strong>,
+    C12 s'applique &agrave; la <strong>semaine civile fixe</strong>.
+  </p>
+</div>
+
+<!-- C13 -->
+<div class="constraint">
+  <span class="cid">C13</span>
+  <span class="cname">Repos mensuel week-end &mdash; 3 jours incluant Sam+Dim</span>
+  <span class="badge badge-purple">Convention</span>
+  <div class="formula">
+    Par mois calendaire : au moins 1 repos de 3 jours cons&eacute;cutifs incluant Samedi ET Dimanche
+  </div>
+  <p>
+    Une fois par mois, chaque navigant doit avoir un repos de 3 jours cons&eacute;cutifs
+    incluant obligatoirement un samedi <strong>et</strong> un dimanche.
+    Les seules combinaisons possibles sont :
+  </p>
+  <ul style="margin:0.5rem 0 0 1.5rem">
+    <li><strong>Vendredi + Samedi + Dimanche</strong></li>
+    <li><strong>Samedi + Dimanche + Lundi</strong></li>
+  </ul>
+  <p>
+    Le solver cr&eacute;e des variables bool&eacute;ennes pour chaque week-end du mois (option VSD et option SDL),
+    puis impose qu'au moins une de ces variables soit vraie.
+  </p>
+</div>
+
+<!-- C14 -->
+<div class="constraint">
+  <span class="cid">C14</span>
+  <span class="cname">RDOV &mdash; 2,5 jours de bureau / semaine civile</span>
+  <span class="badge badge-purple">Convention</span>
+
+  <p style="margin-top:0.8rem">
+    Le navigant affect&eacute; au r&ocirc;le <strong>RDOV</strong> effectue 2,5 jours de bureau
+    par semaine civile. Il n'est disponible pour les vols que 2,5 jours par semaine
+    et ne vole <strong>jamais</strong> le samedi ni le dimanche.
+  </p>
+
+  <p>Cette contrainte est mod&eacute;lis&eacute;e en 3 sous-contraintes :</p>
+
+  <h4>C14a &mdash; Repos week-end obligatoire</h4>
+  <div class="formula">
+    works[c, d] = 0 &nbsp;&nbsp; si d &isin; {Samedi, Dimanche} &nbsp;&nbsp; &forall; c &isin; RDOV
+  </div>
+
+  <h4>C14b &mdash; Max 3 jours de vol par semaine civile</h4>
+  <div class="formula">
+    &Sigma;<sub>d &isin; Lun..Ven(semaine)</sub> works[c, d] &le; 3 &nbsp;&nbsp; &forall; c &isin; RDOV, &forall; semaine civile
+  </div>
+  <p>
+    Plafond entier de 2,5 : permet jusqu'&agrave; 3 jours de vol dans une semaine isol&eacute;e.
+  </p>
+
+  <h4>C14c &mdash; Max 5 jours de vol par 2 semaines cons&eacute;cutives</h4>
+  <div class="formula">
+    &Sigma;<sub>d &isin; jours ouvr&eacute;s(sem. N + sem. N+1)</sub> works[c, d] &le; 5 &nbsp;&nbsp; &forall; c &isin; RDOV
+  </div>
+  <p>
+    Garantit la moyenne exacte de 2,5 jours/semaine.
+    R&eacute;partitions possibles : 3+2, 2+3 ou 2+2 (sous-utilisation).
+  </p>
+
+  <pre><code><span class="cm">// AddRdovConstraint — OrToolsSizingSolver.cs</span>
+<span class="kw">if</span> (dow <span class="kw">is</span> <span class="tp">DayOfWeek</span>.Saturday <span class="kw">or</span> <span class="tp">DayOfWeek</span>.Sunday)
+    model.<span class="fn">Add</span>(works[c][d] == <span class="num">0</span>);           <span class="cm">// C14a</span>
+
+model.<span class="fn">Add</span>(<span class="tp">LinearExpr</span>.<span class="fn">Sum</span>(weekVars) &lt;= <span class="num">3</span>);  <span class="cm">// C14b</span>
+
+model.<span class="fn">Add</span>(<span class="tp">LinearExpr</span>.<span class="fn">Sum</span>(twoWeekVars) &lt;= <span class="num">5</span>); <span class="cm">// C14c</span></code></pre>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- 7. DICTIONNAIRES DE CONTRAINTES PAR SOURCE                 -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+
+<h2 id="dictionaries">7. Dictionnaires de contraintes par source r&eacute;glementaire</h2>
+
+<p>
+  Les 14 contraintes du solver sont class&eacute;es en <strong>4 cat&eacute;gories</strong> selon leur source juridique.
+  Cette classification permet de tracer l'origine de chaque r&egrave;gle et d'identifier
+  quelle r&eacute;glementation est la plus limitative pour le dimensionnement.
+</p>
+
+<p>
+  Le syst&egrave;me utilise un <code>ConstraintRegistry</code> qui fusionne les 3 sources param&eacute;triques
+  en prenant la <strong>valeur la plus restrictive</strong> pour chaque param&egrave;tre :
+  pour les maximums (duty, HDV, jours cons&eacute;cutifs), c'est la plus basse ;
+  pour les minimums (repos, jours OFF), c'est la plus haute.
+</p>
+
+<!-- ORO.FTL -->
+<div class="dict-section">
+  <div class="dict-header dict-header-oro">
+    <span class="badge badge-blue">ORO.FTL</span>
+    EASA ORO.FTL / EU-OPS Subpart Q (arr&ecirc;t&eacute; du 28 juin 2011)
+  </div>
+  <div class="dict-body">
+    <table>
+      <tr><th>Code</th><th>Nom</th><th>Param&egrave;tre FtlRules</th><th>Valeur</th><th>R&eacute;f&eacute;rence</th></tr>
+      <tr>
+        <td><span class="cid" style="font-size:0.7rem">C5</span></td>
+        <td>TSV 7j &le; 60h</td>
+        <td><code>MaxDuty7dMinutes</code></td>
+        <td>3 600 min (60h)</td>
+        <td>ORO.FTL.210(b)</td>
+      </tr>
+      <tr>
+        <td><span class="cid" style="font-size:0.7rem">C6</span></td>
+        <td>TSV 14j &le; 110h</td>
+        <td><code>MaxDuty14dMinutes</code></td>
+        <td>6 600 min (110h)</td>
+        <td>ORO.FTL.210(b)</td>
+      </tr>
+      <tr>
+        <td><span class="cid" style="font-size:0.7rem">C7</span></td>
+        <td>TSV 28j &le; 190h</td>
+        <td><code>MaxDuty28dMinutes</code></td>
+        <td>11 400 min (190h)</td>
+        <td>ORO.FTL.210(b)</td>
+      </tr>
+      <tr>
+        <td><span class="cid" style="font-size:0.7rem">C8</span></td>
+        <td>HDV 28j &le; 100h</td>
+        <td><code>MaxHdv28dMinutes</code></td>
+        <td>6 000 min (100h)</td>
+        <td>ORO.FTL.210(a)</td>
+      </tr>
+      <tr>
+        <td><span class="cid" style="font-size:0.7rem">C10</span></td>
+        <td>Repos min 12h</td>
+        <td><code>MinRestMinutes</code></td>
+        <td>720 min (12h)</td>
+        <td>ORO.FTL.235(a)</td>
+      </tr>
+    </table>
+  </div>
+</div>
+
+<p>
+  Ces contraintes d&eacute;coulent du cadre europ&eacute;en de limitation des temps de vol et de service.
+  Elles s'appliquent &agrave; tout exploitant a&eacute;rien soumis au r&egrave;glement EASA ou &agrave; ses transpositions
+  nationales (arr&ecirc;t&eacute; du 28 juin 2011 pour les territoires hors EASA).
+  Elles fixent les <strong>plafonds cumulatifs</strong> de temps de service et d'heures de vol,
+  ainsi que le <strong>repos minimum inter-services</strong>.
+</p>
+
+<!-- Convention compagnie -->
+<div class="dict-section">
+  <div class="dict-header dict-header-conv">
+    <span class="badge badge-purple">CONVENTION</span>
+    Convention d'entreprise Air Cal&eacute;donie (TPC)
+  </div>
+  <div class="dict-body">
+    <table>
+      <tr><th>Code</th><th>Nom</th><th>Param&egrave;tre FtlRules</th><th>Valeur</th><th>R&eacute;f&eacute;rence</th></tr>
+      <tr>
+        <td><span class="cid" style="font-size:0.7rem; background:var(--purple)">C11b</span></td>
+        <td>Min 2j OFF cons&eacute;cutifs</td>
+        <td><code>MinRestDaysPerPeriod</code></td>
+        <td>2 jours</td>
+        <td>Convention collective TPC</td>
+      </tr>
+      <tr>
+        <td><span class="cid" style="font-size:0.7rem; background:var(--purple)">C13</span></td>
+        <td>Repos WE mensuel 3j</td>
+        <td><code>MonthlyWeekendRestDays</code></td>
+        <td>3 jours</td>
+        <td>Convention collective TPC</td>
+      </tr>
+      <tr>
+        <td><span class="cid" style="font-size:0.7rem; background:var(--purple)">C14</span></td>
+        <td>RDOV 2,5j vol/sem.</td>
+        <td>&mdash; <em>(sp&eacute;cifique)</em></td>
+        <td>C14a&nbsp;: WE OFF &middot; C14b&nbsp;: &le;3j/sem &middot; C14c&nbsp;: &le;5j/2sem</td>
+        <td>Convention collective TPC &mdash; fonction RDOV</td>
+      </tr>
+    </table>
+  </div>
+</div>
+
+<p>
+  Ces contraintes sont n&eacute;goci&eacute;es dans le cadre de la convention d'entreprise
+  d'Air Cal&eacute;donie (TPC). Elles sont g&eacute;n&eacute;ralement <strong>plus restrictives</strong>
+  que la r&eacute;glementation de base :
+</p>
+<ul style="margin:0.5rem 0 1rem 1.5rem">
+  <li><strong>C11b</strong> &mdash; interdit les jours OFF isol&eacute;s (pattern ON-OFF-ON),
+    garantissant des repos de qualit&eacute; d'au moins 2 jours cons&eacute;cutifs.</li>
+  <li><strong>C13</strong> &mdash; impose un repos week-end mensuel de 3 jours cons&eacute;cutifs
+    incluant samedi + dimanche, assurant un &eacute;quilibre vie professionnelle / vie priv&eacute;e.</li>
+  <li><strong>C14</strong> &mdash; navigant RDOV : repos obligatoire samedi + dimanche,
+    au plus 2,5 jours de vol par semaine civile (mod&eacute;lis&eacute; en 3 sous-contraintes C14a/b/c).</li>
+</ul>
+
+<!-- Délibération n°77 -->
+<div class="dict-section">
+  <div class="dict-header dict-header-delib">
+    <span class="badge badge-teal">D&Eacute;LIB. 77</span>
+    D&eacute;lib&eacute;ration n&deg;77 &mdash; R&eacute;glementation locale Nouvelle-Cal&eacute;donie
+  </div>
+  <div class="dict-body">
+    <table>
+      <tr><th>Code</th><th>Nom</th><th>Param&egrave;tre FtlRules</th><th>Valeur</th><th>R&eacute;f&eacute;rence</th></tr>
+      <tr>
+        <td><span class="cid" style="font-size:0.7rem; background:#2dd4bf">C9</span></td>
+        <td>8 jours OFF / mois</td>
+        <td><code>MinDaysOffPerMonth</code></td>
+        <td>8 jours</td>
+        <td>D&eacute;lib&eacute;ration n&deg;77</td>
+      </tr>
+      <tr>
+        <td><span class="cid" style="font-size:0.7rem; background:#2dd4bf">C11a</span></td>
+        <td>Max 6j cons&eacute;cutifs ON</td>
+        <td><code>MaxConsecutiveWorkDays</code></td>
+        <td>6 jours</td>
+        <td>D&eacute;lib&eacute;ration n&deg;77</td>
+      </tr>
+      <tr>
+        <td><span class="cid" style="font-size:0.7rem; background:#2dd4bf">C12</span></td>
+        <td>Repos hebdo 2 nuit&eacute;es</td>
+        <td><code>WeeklyRestNights</code></td>
+        <td>2 nuit&eacute;es</td>
+        <td>D&eacute;lib&eacute;ration n&deg;77</td>
+      </tr>
+    </table>
+  </div>
+</div>
+
+<p>
+  La d&eacute;lib&eacute;ration n&deg;77 est une r&eacute;glementation locale sp&eacute;cifique &agrave; la Nouvelle-Cal&eacute;donie,
+  applicable aux navigants op&eacute;rant sur le territoire.
+  Elle transpose et compl&egrave;te le droit du travail m&eacute;tropolitain avec des dispositions
+  adapt&eacute;es au contexte local, en particulier sur les <strong>rythmes de travail et de repos</strong>.
+</p>
+
+<!-- Structural -->
+<div class="dict-section">
+  <div class="dict-header dict-header-struct">
+    <span class="badge" style="background:rgba(139,144,160,0.2); color:var(--text-muted)">STRUCT.</span>
+    Contraintes structurelles du mod&egrave;le (pas de source juridique)
+  </div>
+  <div class="dict-body">
+    <table>
+      <tr><th>Code</th><th>Nom</th><th>Description</th></tr>
+      <tr>
+        <td><span class="cid" style="font-size:0.7rem; background:var(--text-muted)">C1</span></td>
+        <td>Indisponibilit&eacute;s</td>
+        <td>Navigant en cong&eacute;, formation ou arr&ecirc;t &rarr; non affectable (donn&eacute;es BDD)</td>
+      </tr>
+      <tr>
+        <td><span class="cid" style="font-size:0.7rem; background:var(--text-muted)">C2</span></td>
+        <td>Max 1 bloc/jour</td>
+        <td>Un navigant ne peut effectuer qu'un seul bloc par jour calendaire</td>
+      </tr>
+      <tr>
+        <td><span class="cid" style="font-size:0.7rem; background:var(--text-muted)">C3</span></td>
+        <td>Lien isUsed &harr; works</td>
+        <td>Variable technique liant isUsed[c] &agrave; works[c,d] pour la fonction objectif</td>
+      </tr>
+      <tr>
+        <td><span class="cid" style="font-size:0.7rem; background:var(--text-muted)">C4</span></td>
+        <td>Couverture par rang</td>
+        <td>Chaque bloc couvert par le nombre requis de CDB, OPL, CC, PNC (TypeAvion)</td>
+      </tr>
+    </table>
+  </div>
+</div>
+
+<p>
+  Ces contraintes sont inh&eacute;rentes au mod&egrave;le d'optimisation et ne d&eacute;coulent
+  d'aucune source r&eacute;glementaire. Elles sont <strong>toujours actives</strong> et
+  ne peuvent pas &ecirc;tre d&eacute;sactiv&eacute;es ni param&eacute;tr&eacute;es.
+</p>
+
+<h3>7.5 Fusion multi-sources &mdash; <code>ConstraintRegistry.MergeToFtlRules()</code></h3>
+
+<p>
+  Lorsque plusieurs sources d&eacute;finissent le m&ecirc;me param&egrave;tre, le registre applique
+  la r&egrave;gle de la <strong>valeur la plus restrictive</strong> :
+</p>
+
+<table>
+  <tr><th>Type de param&egrave;tre</th><th>R&egrave;gle de fusion</th><th>Exemple</th></tr>
+  <tr>
+    <td>Maximum (duty, HDV, jours cons&eacute;cutifs)</td>
+    <td><code>Math.Min()</code> &mdash; la plus basse gagne</td>
+    <td>Si ORO.FTL dit 7j cons&eacute;cutifs max et D&eacute;lib. 77 dit 6 &rarr; <strong>6</strong></td>
+  </tr>
+  <tr>
+    <td>Minimum (repos, jours OFF)</td>
+    <td><code>Math.Max()</code> &mdash; la plus haute gagne</td>
+    <td>Si ORO.FTL dit 10h de repos et Convention dit 12h &rarr; <strong>12h</strong></td>
+  </tr>
+</table>
+
+<pre><code><span class="cm">// ConstraintRegistry.cs — Fusion multi-sources</span>
+<span class="kw">int</span> <span class="fn">Resolve</span>(<span class="kw">string</span> propertyName, <span class="kw">int</span> fallback)
+{
+    <span class="kw">var</span> matching = all.<span class="fn">Where</span>(c =&gt; c.FtlRulesProperty == propertyName);
+    <span class="kw">if</span> (first.LowerIsMoreRestrictive == <span class="num">true</span>)
+        <span class="kw">return</span> matching.<span class="fn">Min</span>(c =&gt; c.DefaultValue);  <span class="cm">// max duty → min gagne</span>
+    <span class="kw">if</span> (first.LowerIsMoreRestrictive == <span class="num">false</span>)
+        <span class="kw">return</span> matching.<span class="fn">Max</span>(c =&gt; c.DefaultValue);  <span class="cm">// min repos → max gagne</span>
+}</code></pre>
+
+<h3>7.6 Vue synth&eacute;tique</h3>
+
+<table>
+  <tr>
+    <th>Code</th><th>Contrainte</th>
+    <th style="text-align:center">ORO.FTL</th>
+    <th style="text-align:center">Convention</th>
+    <th style="text-align:center">D&eacute;lib. 77</th>
+    <th style="text-align:center">Struct.</th>
+  </tr>
+  <tr><td>C1</td><td>Indisponibilit&eacute;s</td><td></td><td></td><td></td><td style="text-align:center">&bull;</td></tr>
+  <tr><td>C2</td><td>Max 1 bloc/jour</td><td></td><td></td><td></td><td style="text-align:center">&bull;</td></tr>
+  <tr><td>C3</td><td>Lien isUsed</td><td></td><td></td><td></td><td style="text-align:center">&bull;</td></tr>
+  <tr><td>C4</td><td>Couverture par rang</td><td></td><td></td><td></td><td style="text-align:center">&bull;</td></tr>
+  <tr><td>C5</td><td>TSV 7j &le; 60h</td><td style="text-align:center"><span class="badge badge-blue">&bull;</span></td><td></td><td></td><td></td></tr>
+  <tr><td>C6</td><td>TSV 14j &le; 110h</td><td style="text-align:center"><span class="badge badge-blue">&bull;</span></td><td></td><td></td><td></td></tr>
+  <tr><td>C7</td><td>TSV 28j &le; 190h</td><td style="text-align:center"><span class="badge badge-blue">&bull;</span></td><td></td><td></td><td></td></tr>
+  <tr><td>C8</td><td>HDV 28j &le; 100h</td><td style="text-align:center"><span class="badge badge-blue">&bull;</span></td><td></td><td></td><td></td></tr>
+  <tr><td>C9</td><td>8 jours OFF/mois</td><td></td><td></td><td style="text-align:center"><span class="badge badge-teal">&bull;</span></td><td></td></tr>
+  <tr><td>C10</td><td>Repos min 12h</td><td style="text-align:center"><span class="badge badge-blue">&bull;</span></td><td></td><td></td><td></td></tr>
+  <tr><td>C11a</td><td>Max 6j cons&eacute;cutifs</td><td></td><td></td><td style="text-align:center"><span class="badge badge-teal">&bull;</span></td><td></td></tr>
+  <tr><td>C11b</td><td>Min 2j OFF cons&eacute;cutifs</td><td></td><td style="text-align:center"><span class="badge badge-purple">&bull;</span></td><td></td><td></td></tr>
+  <tr><td>C12</td><td>Repos hebdo 2 nuit&eacute;es</td><td></td><td></td><td style="text-align:center"><span class="badge badge-teal">&bull;</span></td><td></td></tr>
+  <tr><td>C13</td><td>Repos WE mensuel 3j</td><td></td><td style="text-align:center"><span class="badge badge-purple">&bull;</span></td><td></td><td></td></tr>
+  <tr><td>C14</td><td>RDOV 2,5j vol/sem.</td><td></td><td style="text-align:center"><span class="badge badge-purple">&bull;</span></td><td></td><td></td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- 8. POLYVALENCE CC->PNC                                     -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+
+<h2 id="polyvalence">8. Polyvalence CC &rarr; PNC</h2>
+
+<p>
+  <strong>R&egrave;gle m&eacute;tier :</strong> un Chef de Cabine (CC) peut remplir la fonction de PNC sur un bloc,
+  mais un PNC ne peut pas remplacer un CC. Le CC poss&egrave;de des comp&eacute;tences et responsabilit&eacute;s
+  suppl&eacute;mentaires (s&eacute;curit&eacute;, gestion cabine).
+</p>
+
+<p>Cette polyvalence est mod&eacute;lis&eacute;e par la combinaison des contraintes C4a et C4b :</p>
+
+<table>
+  <tr><th>Contrainte</th><th>Formule</th><th>S&eacute;mantique</th></tr>
+  <tr>
+    <td><span class="badge badge-blue">C4a</span></td>
+    <td><code>&Sigma;(CC) &ge; RequiredCc</code></td>
+    <td>Au moins N CC &mdash; un PNC ne peut pas &ecirc;tre CC</td>
+  </tr>
+  <tr>
+    <td><span class="badge badge-green">C4b</span></td>
+    <td><code>&Sigma;(CC + PNC) &ge; RequiredCc + RequiredPnc</code></td>
+    <td>Total cabine suffisant &mdash; un CC peut remplir un poste PNC</td>
+  </tr>
+</table>
+
+<h3>Exemples</h3>
+
+<div class="card-grid">
+  <div class="card">
+    <h4>ATR 72-600 (Air Cal&eacute;donie)</h4>
+    <p>RequiredCc = 1, RequiredPnc = 0</p>
+    <p>C4a : &ge; 1 CC &rarr; <span class="badge badge-green">1 CC suffit</span></p>
+    <p>C4b : &ge; 1 total &rarr; redondante avec C4a</p>
+  </div>
+  <div class="card">
+    <h4>Avion fictif (CC=1, PNC=1)</h4>
+    <p>RequiredCc = 1, RequiredPnc = 1</p>
+    <p>C4a : &ge; 1 CC</p>
+    <p>C4b : &ge; 2 total cabine</p>
+    <p>Solutions : <span class="badge badge-green">1 CC + 1 PNC</span> ou <span class="badge badge-green">2 CC</span></p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- 9. RESULTATS                                               -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+
+<h2 id="results">9. R&eacute;sultats du solver</h2>
+
+<h3>9.1 SizingResult</h3>
+<table>
+  <tr><th>Champ</th><th>Type</th><th>Description</th></tr>
+  <tr>
+    <td><code>Status</code></td>
+    <td>SolverStatus</td>
+    <td>
+      <span class="badge badge-green">Optimal</span>
+      <span class="badge badge-blue">Feasible</span>
+      <span class="badge badge-red">Infeasible</span>
+      <span class="badge badge-amber">Timeout</span>
+    </td>
+  </tr>
+  <tr>
+    <td><code>MinimumCrewByRank</code></td>
+    <td>Dict&lt;Rank, int&gt;</td>
+    <td>
+      <strong>R&eacute;sultat principal</strong> : effectif minimum par rang.<br>
+      Ex: {CDB: 4, OPL: 4} = &laquo; il faut au minimum 4 CDB et 4 OPL &raquo;
+    </td>
+  </tr>
+  <tr>
+    <td><code>MarginByRank</code></td>
+    <td>Dict&lt;Rank, int&gt;</td>
+    <td>Marge = effectif disponible &minus; minimum requis. Ex: {CDB: +6, OPL: +5}</td>
+  </tr>
+  <tr>
+    <td><code>CriticalDays</code></td>
+    <td>List&lt;CriticalDay&gt;</td>
+    <td>Jours o&ugrave; la marge &le; 1 (un seul cong&eacute; impond&eacute;r&eacute; rendrait le programme infaisable)</td>
+  </tr>
+  <tr>
+    <td><code>Assignments</code></td>
+    <td>List&lt;DailyAssignment&gt;</td>
+    <td>Planning d&eacute;taill&eacute; : jour &rarr; blocs &rarr; trigrammes affect&eacute;s + navigants en OFF</td>
+  </tr>
+  <tr>
+    <td><code>BindingConstraint</code></td>
+    <td>string?</td>
+    <td>Contrainte FTL la plus limitative (ex: &laquo; Temps de service 7j &mdash; utilisation 98% &raquo;)</td>
+  </tr>
+</table>
+
+<h3>9.2 CombinedSizingResult</h3>
+<p>
+  Le r&eacute;sultat final combine les deux passes (PNT + PNC) :
+</p>
+<pre><code><span class="kw">public sealed record</span> <span class="tp">CombinedSizingResult</span>
+{
+    <span class="kw">public required</span> <span class="tp">SizingResult</span> PntResult { <span class="kw">get</span>; <span class="kw">init</span>; }
+    <span class="kw">public required</span> <span class="tp">SizingResult</span> PncResult { <span class="kw">get</span>; <span class="kw">init</span>; }
+    <span class="kw">public bool</span> IsBothFeasible =&gt; PntResult.IsFeasible &amp;&amp; PncResult.IsFeasible;
+}</code></pre>
+
+<h3>9.3 Infaisabilit&eacute;</h3>
+<p>
+  Si l'effectif disponible ne peut pas couvrir le programme :
+</p>
+<pre><code><span class="tp">SolverStatus</span>.Infeasible =&gt;
+    <span class="kw">new</span> <span class="tp">SizingResult</span>
+    {
+        Status = <span class="tp">SolverStatus</span>.Infeasible,
+        Message = <span class="str">"Programme non couvrable avec l'effectif disponible. "</span> +
+                  <span class="str">"Augmenter l'effectif ou r&eacute;duire le programme."</span>,
+    }</code></pre>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- 10. CONTRAINTE MORDANTE                                    -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+
+<h2 id="binding">10. Analyse de la contrainte mordante</h2>
+
+<p>
+  Apr&egrave;s r&eacute;solution, le solver analyse la solution pour identifier la contrainte FTL
+  la plus <strong>serr&eacute;e</strong> (&laquo; binding constraint &raquo;) &mdash; celle qui d&eacute;termine le plus
+  l'effectif minimum.
+</p>
+
+<p>
+  La m&eacute;thode <code>DetermineBindingConstraint()</code> calcule 8 ratios d'utilisation
+  (0% &agrave; 100%) pour chaque navigant, puis retourne le maximum global :
+</p>
+
+<table>
+  <tr><th>Code</th><th>Ratio</th><th>Source</th><th>Formule</th><th>Limite</th></tr>
+  <tr><td>C5</td><td>TSV 7j</td><td><span class="badge badge-blue">ORO.FTL</span></td><td>max duty 7j r&eacute;el / 60h</td><td>60h</td></tr>
+  <tr><td>C6</td><td>TSV 14j</td><td><span class="badge badge-blue">ORO.FTL</span></td><td>max duty 14j r&eacute;el / 110h</td><td>110h</td></tr>
+  <tr><td>C8</td><td>HDV 28j</td><td><span class="badge badge-blue">ORO.FTL</span></td><td>max HDV 28j r&eacute;el / 100h</td><td>100h</td></tr>
+  <tr><td>C9</td><td>Jours ON 28j</td><td><span class="badge badge-teal">D&eacute;lib. 77</span></td><td>max jours travaill&eacute;s / 20</td><td>20 (= 28 &minus; 8 OFF)</td></tr>
+  <tr><td>C11a</td><td>Jours cons&eacute;cutifs</td><td><span class="badge badge-teal">D&eacute;lib. 77</span></td><td>max cons&eacute;cutifs / 6</td><td>6 jours</td></tr>
+  <tr><td>C12</td><td>Repos hebdo</td><td><span class="badge badge-teal">D&eacute;lib. 77</span></td><td>jours travaill&eacute;s / max autoris&eacute; dans la semaine</td><td>5/7</td></tr>
+  <tr><td>C13</td><td>Repos WE mensuel</td><td><span class="badge badge-purple">Convention</span></td><td>WE travaill&eacute;s / (total WE &minus; 1)</td><td>n&minus;1 WE</td></tr>
+  <tr><td>C14</td><td>RDOV 2,5j/sem.</td><td><span class="badge badge-purple">Convention</span></td><td>max jours vol&eacute;s RDOV / 2,5 par semaine civile</td><td>2,5 j/sem</td></tr>
+</table>
+
+<p>
+  Le r&eacute;sultat inclut d&eacute;sormais le <strong>code</strong> et la <strong>source r&eacute;glementaire</strong>
+  de la contrainte mordante, via les champs <code>BindingConstraintCode</code> et
+  <code>BindingConstraintSource</code> du <code>SizingResult</code>.
+</p>
+
+<p>
+  <strong>Exemple de sortie :</strong>
+  <code>"TSV 7j (60h max) &mdash; utilisation 98%"</code> avec code <code>C5</code>
+  et source <span class="badge badge-blue">ORO.FTL</span>
+  signifie que la limite ORO.FTL.210(b) de 60h sur 7 jours est la contrainte la plus limitative,
+  avec un navigant atteignant 98% de la limite.
+</p>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- 11. MENTIONS LEGALES                                       -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+
+<div class="legal">
+  <h2 id="legal">Mentions l&eacute;gales et propri&eacute;t&eacute; intellectuelle</h2>
+
+  <p>
+    <strong>&copy; 2026 Julien PELOILLE &mdash; Tous droits r&eacute;serv&eacute;s.</strong>
+  </p>
+
+  <p>
+    Ce document et le logiciel CrewSizer qu'il d&eacute;crit, incluant sans s'y limiter le code source,
+    les algorithmes, les mod&egrave;les math&eacute;matiques, les structures de donn&eacute;es, l'architecture logicielle
+    et la documentation technique, sont la <strong>propri&eacute;t&eacute; intellectuelle exclusive</strong>
+    de Julien PELOILLE.
+  </p>
+
+  <p>
+    Toute reproduction, distribution, modification, adaptation, traduction, r&eacute;tro-ing&eacute;nierie,
+    d&eacute;compilation, d&eacute;sassemblage ou utilisation non autoris&eacute;e, en tout ou en partie,
+    par quelque moyen et sous quelque forme que ce soit, est <strong>strictement interdite</strong>
+    et constitue une contrefa&ccedil;on sanctionn&eacute;e par :
+  </p>
+
+  <ul style="margin:0.5rem 0 1rem 1.5rem">
+    <li>Le <strong>Code de la propri&eacute;t&eacute; intellectuelle fran&ccedil;ais</strong>
+      (articles L.111-1 et suivants, L.122-4, L.335-2 et suivants) :
+      jusqu'&agrave; 3 ans d'emprisonnement et 300 000 &euro; d'amende.</li>
+    <li>La <strong>directive europ&eacute;enne 2009/24/CE</strong> du 23 avril 2009
+      concernant la protection juridique des programmes d'ordinateur.</li>
+    <li>La <strong>Convention de Berne</strong> pour la protection des &oelig;uvres litt&eacute;raires
+      et artistiques (applicable aux logiciels).</li>
+    <li>Les <strong>accords ADPIC</strong> (TRIPS) de l'Organisation Mondiale du Commerce.</li>
+  </ul>
+
+  <p>
+    Le logiciel est prot&eacute;g&eacute; par le <strong>droit d'auteur</strong> d&egrave;s sa cr&eacute;ation,
+    conform&eacute;ment &agrave; l'article L.111-1 du Code de la propri&eacute;t&eacute; intellectuelle,
+    sans n&eacute;cessit&eacute; de d&eacute;p&ocirc;t ni de formalit&eacute;.
+    L'originalit&eacute; des algorithmes de dimensionnement, la mod&eacute;lisation math&eacute;matique
+    des contraintes FTL en programmation par contraintes (CP-SAT), et l'architecture logicielle
+    constituent des &oelig;uvres de l'esprit prot&eacute;g&eacute;es.
+  </p>
+
+  <p>
+    <strong>Confidentialit&eacute; :</strong> ce document contient des informations confidentielles
+    et propri&eacute;taires. Sa divulgation &agrave; des tiers non autoris&eacute;s est interdite.
+  </p>
+
+  <p>
+    <strong>Marques :</strong> Google OR-Tools est une marque de Google LLC.
+    Les autres marques cit&eacute;es appartiennent &agrave; leurs propri&eacute;taires respectifs.
+  </p>
+
+  <p style="margin-top:1.5rem; padding-top:1rem; border-top:1px solid var(--border);">
+    <em>Date de r&eacute;daction : 1er mars 2026</em><br>
+    <em>Version du logiciel : CrewSizer v1.0 &mdash; Module CP-SAT</em><br>
+    <em>Auteur : Julien PELOILLE</em>
+  </p>
+</div>
+
+</div><!-- .container -->
+
+<footer class="footer">
+  <div class="container">
+    <p>&copy; 2026 Julien PELOILLE &mdash; CrewSizer &mdash; Tous droits r&eacute;serv&eacute;s</p>
+    <p style="margin-top:0.3rem">Document confidentiel &mdash; Reproduction interdite</p>
+  </div>
+</footer>
+
+</body>
+</html>

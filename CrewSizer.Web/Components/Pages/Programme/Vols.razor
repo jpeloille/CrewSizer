@@ -1,0 +1,308 @@
+@page "/programme/vols"
+@inject IMediator Mediator
+
+<PageTitle>Catalogue des vols — CrewSizer</PageTitle>
+
+<div class="page-fill">
+<h3 class="text-2xl font-bold text-foreground">Catalogue des vols</h3>
+
+<PipelineNav ActiveStep="vols" />
+
+<DxGrid @ref="grid" Data="vols" CssClass="grid-fill"
+        VirtualScrollingEnabled="true"
+        KeyFieldName="Id">
+    <ToolbarTemplate>
+        <DxToolbar>
+            <DxToolbarItem Text="Nouveau vol"
+                           Click="OpenCreate"
+                           RenderStyle="ButtonRenderStyle.Primary"
+                           IconCssClass="tb-icon" />
+            <DxToolbarItem Alignment="ToolbarItemAlignment.Right">
+                <Template Context="tbCtx">
+                    <span class="font-data text-xs text-muted-foreground">
+                        Temps de bloc total : @HoursToHHMM(vols.Sum(v => v.HdvVol))
+                    </span>
+                </Template>
+            </DxToolbarItem>
+        </DxToolbar>
+    </ToolbarTemplate>
+    <Columns>
+        <DxGridDataColumn FieldName="Numero" Caption="N° Vol" Width="110px">
+            <CellDisplayTemplate>
+                <span class="font-data text-sm font-bold tracking-wide text-primary">@context.Value</span>
+            </CellDisplayTemplate>
+        </DxGridDataColumn>
+        <DxGridDataColumn FieldName="Depart" Caption="Route" Width="160px" UnboundType="GridUnboundColumnType.String">
+            <CellDisplayTemplate>
+                @{
+                    var vol = (VolDto)context.DataItem;
+                    var color = GetRouteColor(vol.Depart, vol.Arrivee);
+                }
+                <span class="inline-flex items-center gap-1.5 font-data text-sm font-semibold">
+                    <span class="rounded px-1.5 py-0.5 text-xs" style="background: @(color)18; color: @color;">@vol.Depart</span>
+                    <span class="text-xs text-muted-foreground">→</span>
+                    <span style="color: @color;">@vol.Arrivee</span>
+                </span>
+            </CellDisplayTemplate>
+        </DxGridDataColumn>
+        <DxGridDataColumn FieldName="HeureDepart" Caption="STD" Width="80px">
+            <CellDisplayTemplate>
+                <span class="font-data text-xs text-muted-foreground">@context.Value</span>
+            </CellDisplayTemplate>
+        </DxGridDataColumn>
+        <DxGridDataColumn FieldName="HeureArrivee" Caption="STA" Width="80px">
+            <CellDisplayTemplate>
+                <span class="font-data text-xs text-muted-foreground">@context.Value</span>
+            </CellDisplayTemplate>
+        </DxGridDataColumn>
+        <DxGridDataColumn FieldName="HdvVol" Caption="Bloc" Width="90px">
+            <CellDisplayTemplate>
+                <span class="rounded bg-primary/10 px-2 py-0.5 font-data text-xs font-semibold text-primary">
+                    @HoursToHHMM((double)context.Value)
+                </span>
+            </CellDisplayTemplate>
+        </DxGridDataColumn>
+        <DxGridDataColumn FieldName="MH" Caption="MH" Width="60px">
+            <CellDisplayTemplate>
+                @if ((bool)context.Value)
+                {
+                    <span class="badge-mh">MH</span>
+                }
+            </CellDisplayTemplate>
+        </DxGridDataColumn>
+        <DxGridDataColumn FieldName="Id" Caption="" Width="100px" AllowSort="false"
+                          UnboundType="GridUnboundColumnType.String">
+            <CellDisplayTemplate>
+                @{
+                    var item = (VolDto)context.DataItem;
+                }
+                <div class="flex gap-1">
+                    <button class="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground" title="Editer"
+                            @onclick="() => OpenEdit(item)">
+                        <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                        </svg>
+                    </button>
+                    <button class="rounded p-1 text-muted-foreground hover:bg-red-500/15 hover:text-red-400" title="Supprimer"
+                            @onclick="() => OpenDelete(item)">
+                        <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                            <path d="M3 6h18" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                        </svg>
+                    </button>
+                </div>
+            </CellDisplayTemplate>
+        </DxGridDataColumn>
+    </Columns>
+</DxGrid>
+
+<div class="mt-1 font-data text-xs text-muted-foreground">@vols.Count vol(s)</div>
+</div>
+
+@* Edit Popup — standalone *@
+<DxPopup @bind-Visible="editPopupVisible" HeaderText="@popupTitle"
+         Width="500px" CloseOnOutsideClick="false" ShowCloseButton="true">
+    <BodyContentTemplate Context="popupCtx">
+        @if (editModel is not null)
+        {
+            @if (editError is not null)
+            {
+                <div class="cs-alert-error mb-4">@editError</div>
+            }
+            <div class="grid grid-cols-2 gap-4">
+                <div class="space-y-2">
+                    <label class="text-sm font-medium text-foreground">N° Vol</label>
+                    <input type="text" class="cs-input font-data font-bold" @bind="editModel.Numero" placeholder="TY100" />
+                </div>
+                <div class="space-y-2">
+                    <label class="text-sm font-medium text-foreground">MH</label>
+                    <label class="flex items-center gap-2 pt-1">
+                        <input type="checkbox" class="cs-checkbox" @bind="editModel.MH" />
+                        <span class="text-sm text-foreground">Mise hors service</span>
+                    </label>
+                </div>
+                <div class="space-y-2">
+                    <label class="text-sm font-medium text-foreground">Départ</label>
+                    <input type="text" class="cs-input font-data" @bind="editModel.Depart" placeholder="NOU" />
+                </div>
+                <div class="space-y-2">
+                    <label class="text-sm font-medium text-foreground">Arrivée</label>
+                    <input type="text" class="cs-input font-data" @bind="editModel.Arrivee" placeholder="LIF" />
+                </div>
+                <div class="space-y-2">
+                    <label class="text-sm font-medium text-foreground">Heure Départ</label>
+                    <input type="time" class="cs-input font-data" value="@editModel.HeureDepart"
+                           @onchange="OnHeureDepartChanged" />
+                </div>
+                <div class="space-y-2">
+                    <label class="text-sm font-medium text-foreground">Heure Arrivée</label>
+                    <input type="time" class="cs-input font-data" value="@editModel.HeureArrivee"
+                           @onchange="OnHeureArriveeChanged" />
+                </div>
+            </div>
+
+            <div class="mt-4 flex justify-end gap-2">
+                <button class="cs-btn cs-btn-secondary" @onclick="() => editPopupVisible = false"
+                        disabled="@isSaving">Annuler</button>
+                <button class="cs-btn cs-btn-primary" @onclick="SaveVol"
+                        disabled="@(isSaving || string.IsNullOrWhiteSpace(editModel.Numero))">
+                    @(isSaving ? "Enregistrement..." : "Enregistrer")
+                </button>
+            </div>
+        }
+    </BodyContentTemplate>
+</DxPopup>
+
+@* Delete confirmation *@
+<ConfirmPopup @bind-Visible="deletePopupVisible"
+              Title="Supprimer le vol"
+              Description="@($"Supprimer \"{deleteTarget?.Numero}\" ? Cette action est irréversible.")"
+              OnConfirm="ConfirmDelete"
+              OnCancel="@(() => deletePopupVisible = false)"
+              Loading="isDeleting" />
+
+@code {
+    IGrid grid = default!;
+    List<VolDto> vols = [];
+
+    // Edit popup state
+    bool editPopupVisible;
+    string popupTitle = "Vol";
+    string? editError;
+    VolEdit? editModel;
+    Guid? editId;
+    bool isSaving;
+
+    // Delete popup state
+    bool deletePopupVisible;
+    VolDto? deleteTarget;
+    bool isDeleting;
+
+    // Couleurs par destination — identique React constants.ts ROUTE_COLORS
+    static readonly Dictionary<string, string> RouteColors = new()
+    {
+        ["LIF"] = "#06b6d4", ["MEE"] = "#8b5cf6", ["OVE"] = "#f59e0b",
+        ["KNE"] = "#10b981", ["ILP"] = "#f472b6", ["TOU"] = "#ef4444",
+        ["BMY"] = "#6366f1", ["TGJ"] = "#84cc16", ["GEA"] = "#94a3b8",
+        ["NOU"] = "#3b82f6", ["KNQ"] = "#14b8a6", ["VLI"] = "#e879f9",
+        ["SON"] = "#fb923c", ["TAH"] = "#a78bfa"
+    };
+
+    static string GetRouteColor(string dep, string arr)
+    {
+        if (RouteColors.TryGetValue(arr, out var c)) return c;
+        if (RouteColors.TryGetValue(dep, out c)) return c;
+        return "#64748b";
+    }
+
+    static string HoursToHHMM(double h)
+    {
+        var hours = (int)h;
+        var minutes = (int)Math.Round((h - hours) * 60);
+        return $"{hours}h{minutes:D2}";
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        vols = await Mediator.Send(new GetAllVolsQuery());
+    }
+
+    void OpenCreate()
+    {
+        editError = null;
+        editId = null;
+        isSaving = false;
+        popupTitle = "Nouveau vol";
+        editModel = new VolEdit();
+        editPopupVisible = true;
+    }
+
+    void OpenEdit(VolDto vol)
+    {
+        editError = null;
+        editId = vol.Id;
+        isSaving = false;
+        popupTitle = "Modifier le vol";
+        editModel = new VolEdit
+        {
+            Numero = vol.Numero,
+            Depart = vol.Depart,
+            Arrivee = vol.Arrivee,
+            HeureDepart = vol.HeureDepart,
+            HeureArrivee = vol.HeureArrivee,
+            MH = vol.MH
+        };
+        editPopupVisible = true;
+    }
+
+    async Task SaveVol()
+    {
+        if (editModel is null) return;
+        try
+        {
+            editError = null;
+            isSaving = true;
+            if (editId is null)
+            {
+                await Mediator.Send(new CreateVolCommand(
+                    editModel.Numero, editModel.Depart, editModel.Arrivee,
+                    editModel.HeureDepart, editModel.HeureArrivee, editModel.MH));
+            }
+            else
+            {
+                await Mediator.Send(new UpdateVolCommand(
+                    editId.Value, editModel.Numero, editModel.Depart, editModel.Arrivee,
+                    editModel.HeureDepart, editModel.HeureArrivee, editModel.MH));
+            }
+            vols = await Mediator.Send(new GetAllVolsQuery());
+            editPopupVisible = false;
+        }
+        catch (Application.Common.Exceptions.ValidationException ex)
+        {
+            editError = string.Join(" — ", ex.Errors.SelectMany(kv => kv.Value));
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    void OnHeureDepartChanged(ChangeEventArgs e) { if (editModel is not null) editModel.HeureDepart = e.Value?.ToString() ?? ""; }
+    void OnHeureArriveeChanged(ChangeEventArgs e) { if (editModel is not null) editModel.HeureArrivee = e.Value?.ToString() ?? ""; }
+
+    void OpenDelete(VolDto vol)
+    {
+        deleteTarget = vol;
+        deletePopupVisible = true;
+    }
+
+    async Task ConfirmDelete()
+    {
+        if (deleteTarget is null) return;
+        try
+        {
+            isDeleting = true;
+            await Mediator.Send(new DeleteVolCommand(deleteTarget.Id));
+            vols = await Mediator.Send(new GetAllVolsQuery());
+            deletePopupVisible = false;
+        }
+        catch (Exception ex)
+        {
+            editError = ex.Message;
+        }
+        finally
+        {
+            isDeleting = false;
+        }
+    }
+
+    class VolEdit
+    {
+        public string Numero { get; set; } = "";
+        public string Depart { get; set; } = "";
+        public string Arrivee { get; set; } = "";
+        public string HeureDepart { get; set; } = "";
+        public string HeureArrivee { get; set; } = "";
+        public bool MH { get; set; }
+    }
+}

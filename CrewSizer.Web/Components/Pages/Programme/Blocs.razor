@@ -1,0 +1,475 @@
+@page "/programme/blocs"
+@inject IMediator Mediator
+
+<PageTitle>Catalogue des blocs — CrewSizer</PageTitle>
+
+<div class="flex flex-col h-full">
+    <div class="shrink-0">
+        <h3 class="mb-2 text-2xl font-bold text-foreground">Catalogue des blocs</h3>
+        <PipelineNav ActiveStep="blocs" />
+    </div>
+
+    @* Toolbar — identique React BlocsTab.tsx *@
+    <div class="shrink-0">
+                <div class="mb-3 flex flex-wrap items-center gap-3">
+                    @* Search *@
+                    <div class="relative min-w-[200px] max-w-xs flex-1">
+                        <svg class="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                            <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+                        </svg>
+                        <input type="text" placeholder="Rechercher bloc..."
+                               class="w-full rounded-md border border-border bg-background py-1.5 pl-9 pr-3 text-sm text-foreground outline-none focus:border-primary"
+                               @bind="search" @bind:event="oninput" />
+                    </div>
+
+                    @* Period filter *@
+                    <div class="flex rounded-md border border-border">
+                        @foreach (var opt in PeriodFilters)
+                        {
+                            var key = opt.Key;
+                            <button class="px-3 py-1.5 font-data text-xs font-semibold tracking-wide transition-colors first:rounded-l-md last:rounded-r-md @(periodFilter == key ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-accent")"
+                                    @onclick="() => periodFilter = key">
+                                @opt.Label
+                            </button>
+                        }
+                    </div>
+
+                    <div class="flex-1"></div>
+
+                    <button class="cs-btn cs-btn-primary" @onclick="OpenCreate">Nouveau bloc</button>
+                </div>
+    </div>
+
+    @* Card grid *@
+    <div class="flex-1 min-h-0">
+                <div class="h-full overflow-auto">
+                    <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                        @foreach (var bloc in FilteredBlocs)
+                        {
+                            var isMatin = bloc.Periode == "matin";
+                            var accentColor = isMatin ? "#f59e0b" : "#a855f7";
+                            var blocVols = bloc.Etapes
+                                .OrderBy(e => e.Position)
+                                .Select(e => volLookup.GetValueOrDefault(e.VolId))
+                                .Where(v => v is not null)
+                                .ToList();
+                            var dpMin = DiffTimeMinutes(bloc.DebutDP, bloc.FinDP);
+
+                            <div class="rounded-xl border border-border bg-card p-3.5 transition-colors hover:border-muted-foreground/30">
+                                @* Header *@
+                                <div class="mb-2.5 flex items-center justify-between">
+                                    <div>
+                                        <div class="font-data text-[15px] font-bold tracking-wider" style="color: @accentColor;">
+                                            @bloc.Code
+                                        </div>
+                                        <div class="text-xs text-muted-foreground">@bloc.Nom</div>
+                                    </div>
+                                    <div class="flex items-center gap-1">
+                                        <span class="@(isMatin ? "badge-matin" : "badge-am")">
+                                            @(isMatin ? "MATIN" : "AM")
+                                        </span>
+                                        <button class="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+                                                title="Editer" @onclick="() => OpenEdit(bloc)">
+                                            <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                            </svg>
+                                        </button>
+                                        <button class="rounded p-1 text-muted-foreground hover:bg-red-500/15 hover:text-red-400"
+                                                title="Supprimer" @onclick="() => OpenDelete(bloc)">
+                                            <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                                <path d="M3 6h18" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                @* Meta *@
+                                <div class="mb-2.5 flex flex-wrap gap-2.5 font-data text-[11px] text-muted-foreground">
+                                    <span>DP: @MinutesToHHMM(dpMin)</span>
+                                    <span>FDP: @MinutesToHHMM(DiffTimeMinutes(bloc.DebutFDP, bloc.FinFDP))</span>
+                                    <span>Bloc: @HoursToHHMM(bloc.HdvBloc)</span>
+                                    <span class="font-semibold">@bloc.Jour</span>
+                                    <span>@bloc.NbEtapes vol(s)</span>
+                                </div>
+
+                                @* Flight list *@
+                                <div class="space-y-1">
+                                    @for (int i = 0; i < blocVols.Count; i++)
+                                    {
+                                        var vol = blocVols[i]!;
+                                        var routeColor = GetRouteColor(vol.Depart, vol.Arrivee);
+                                        <div class="flex items-center gap-2 rounded-md bg-background px-2 py-1 text-xs">
+                                            <span class="font-data text-[10px] font-bold text-muted-foreground">@(i + 1)</span>
+                                            <span class="font-data text-[11px] font-semibold text-primary">@vol.Numero</span>
+                                            <span class="flex items-center gap-1 text-[11px]" style="color: @routeColor;">
+                                                @vol.Depart → @vol.Arrivee
+                                            </span>
+                                            <span class="ml-auto font-data text-[10px] text-muted-foreground">
+                                                @vol.HeureDepart–@vol.HeureArrivee (@HoursToHHMM(vol.HdvVol))
+                                            </span>
+                                        </div>
+                                    }
+                                </div>
+
+                                @* Timeline bar *@
+                                <div class="mt-2 h-1 overflow-hidden rounded-full bg-border">
+                                    <div class="h-full rounded-full opacity-60"
+                                         style="width: @(dpMin > 0 ? Math.Min(100, bloc.HdvBloc * 60 / dpMin * 100) : 0)%; background: @accentColor;">
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+    </div>
+</div>
+
+@* Edit Popup — DxPopup standalone *@
+<DxPopup @bind-Visible="editPopupVisible" HeaderText="@popupTitle"
+         Width="700px" CloseOnOutsideClick="false" ShowCloseButton="true">
+    <BodyContentTemplate Context="popupCtx">
+        @if (editModel is not null)
+        {
+            @if (editError is not null)
+            {
+                <div class="cs-alert-error mb-4">@editError</div>
+            }
+            <div class="grid grid-cols-2 gap-4">
+                <div class="space-y-2">
+                    <label class="text-sm font-medium text-foreground">Code</label>
+                    <input type="text" class="cs-input font-data font-bold"
+                           @bind="editModel.Code" placeholder="BM1" />
+                </div>
+                <div class="space-y-2">
+                    <label class="text-sm font-medium text-foreground">Séquence</label>
+                    <input type="number" class="cs-input" min="1"
+                           @bind="editModel.Sequence" />
+                </div>
+                <div class="space-y-2">
+                    <label class="text-sm font-medium text-foreground">Jour</label>
+                    <select class="cs-input" @bind="editModel.Jour">
+                        @foreach (var j in JoursSemaine)
+                        { <option value="@j">@j</option> }
+                    </select>
+                </div>
+                <div class="space-y-2">
+                    <label class="text-sm font-medium text-foreground">Période</label>
+                    <select class="cs-input" @bind="editModel.Periode">
+                        <option value="matin">Matin</option>
+                        <option value="apres-midi">Après-midi</option>
+                    </select>
+                </div>
+                <div class="space-y-2">
+                    <label class="text-sm font-medium text-foreground">DP début</label>
+                    <input type="time" class="cs-input" value="@editModel.DebutDP" @onchange="OnDebutDPChanged" />
+                </div>
+                <div class="space-y-2">
+                    <label class="text-sm font-medium text-foreground">DP fin</label>
+                    <input type="time" class="cs-input" value="@editModel.FinDP" @onchange="OnFinDPChanged" />
+                </div>
+                <div class="space-y-2">
+                    <label class="text-sm font-medium text-foreground">FDP début</label>
+                    <input type="time" class="cs-input" value="@editModel.DebutFDP" @onchange="OnDebutFDPChanged" />
+                </div>
+                <div class="space-y-2">
+                    <label class="text-sm font-medium text-foreground">FDP fin</label>
+                    <input type="time" class="cs-input" value="@editModel.FinFDP" @onchange="OnFinFDPChanged" />
+                </div>
+            </div>
+
+            @* Étapes — pills identiques React BlocForm *@
+            <div class="mt-4 space-y-3">
+                <label class="text-sm font-medium text-foreground">Étapes (vols dans ce bloc)</label>
+
+                @if (editModel.Etapes.Count > 0)
+                {
+                    <div class="space-y-1">
+                        @for (int i = 0; i < editModel.Etapes.Count; i++)
+                        {
+                            var idx = i;
+                            var etape = editModel.Etapes[idx];
+                            var vol = volLookup.GetValueOrDefault(etape.VolId);
+                            if (vol is null) continue;
+                            var routeColor = GetRouteColor(vol.Depart, vol.Arrivee);
+                            <div class="flex items-center gap-2 rounded-md bg-muted px-3 py-1.5 text-sm">
+                                <span class="font-data text-xs font-bold text-muted-foreground">@(idx + 1)</span>
+                                <span class="font-data text-xs font-semibold text-primary">@vol.Numero</span>
+                                <span class="text-xs" style="color: @routeColor;">@vol.Depart → @vol.Arrivee</span>
+                                <span class="font-data text-xs text-muted-foreground">@vol.HeureDepart–@vol.HeureArrivee</span>
+                                <span class="flex-1"></span>
+                                <button class="rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+                                        @onclick="() => editModel.Etapes.RemoveAt(idx)">
+                                    <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M18 6 6 18" /><path d="m6 6 12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+                        }
+                    </div>
+                }
+
+                <div class="flex items-end gap-2">
+                    <DxComboBox TData="VolDto" TValue="Guid?"
+                                Data="allVols"
+                                @bind-Value="newEtapeVolId"
+                                TextFieldName="Numero"
+                                ValueFieldName="Id"
+                                NullText="Sélectionner un vol..."
+                                ClearButtonDisplayMode="DataEditorClearButtonDisplayMode.Auto"
+                                CssClass="flex-grow-1" />
+                    <button class="cs-btn cs-btn-secondary cs-btn-sm" @onclick="AddEtape"
+                            disabled="@(!newEtapeVolId.HasValue)">Ajouter</button>
+                </div>
+            </div>
+
+            @if (editModel.Etapes.Count > 0)
+            {
+                var totalHdv = editModel.Etapes
+                    .Select(e => volLookup.GetValueOrDefault(e.VolId))
+                    .Where(v => v is not null)
+                    .Sum(v => v!.HdvVol);
+                <div class="mt-3 rounded-md bg-muted/50 px-3 py-2 font-data text-xs text-muted-foreground">
+                    @editModel.Etapes.Count étape(s) · Temps de bloc total : @HoursToHHMM(totalHdv)
+                </div>
+            }
+
+            <div class="mt-4 flex justify-end gap-2">
+                <button class="cs-btn cs-btn-secondary" @onclick="() => editPopupVisible = false"
+                        disabled="@isSaving">Annuler</button>
+                <button class="cs-btn cs-btn-primary" @onclick="SaveBloc"
+                        disabled="@(isSaving || string.IsNullOrWhiteSpace(editModel.Code) || editModel.Etapes.Count == 0)">
+                    @(isSaving ? "Enregistrement..." : "Enregistrer")
+                </button>
+            </div>
+        }
+    </BodyContentTemplate>
+</DxPopup>
+
+@* Delete confirmation *@
+<ConfirmPopup @bind-Visible="deletePopupVisible"
+              Title="Supprimer le bloc"
+              Description="@($"Supprimer \"{deleteTarget?.Code}\" ? Cette action est irréversible.")"
+              OnConfirm="ConfirmDelete"
+              OnCancel="@(() => deletePopupVisible = false)"
+              Loading="isDeleting" />
+
+@code {
+    static readonly string[] JoursSemaine = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
+
+    List<BlocVolDto> blocs = [];
+    List<VolDto> allVols = [];
+    Dictionary<Guid, VolDto> volLookup = [];
+
+    // Toolbar state
+    string search = "";
+    string periodFilter = "all";
+    static readonly (string Key, string Label)[] PeriodFilters =
+        [("all", "TOUS"), ("matin", "MATIN"), ("apres-midi", "AM")];
+
+    // Edit popup state
+    bool editPopupVisible;
+    string popupTitle = "Bloc";
+    string? editError;
+    BlocEdit? editModel;
+    Guid? editId;
+    Guid? newEtapeVolId;
+    bool isSaving;
+
+    // Delete popup state
+    bool deletePopupVisible;
+    BlocVolDto? deleteTarget;
+    bool isDeleting;
+
+    IEnumerable<BlocVolDto> FilteredBlocs => blocs.Where(b =>
+    {
+        if (periodFilter != "all" && b.Periode != periodFilter) return false;
+        if (string.IsNullOrEmpty(search)) return true;
+        var q = search.ToLowerInvariant();
+        return b.Code.Contains(q, StringComparison.OrdinalIgnoreCase)
+            || (b.Nom?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false);
+    });
+
+    // Route colors — identique React constants.ts
+    static readonly Dictionary<string, string> RouteColors = new()
+    {
+        ["LIF"] = "#06b6d4", ["MEE"] = "#8b5cf6", ["OVE"] = "#f59e0b",
+        ["KNE"] = "#10b981", ["ILP"] = "#f472b6", ["TOU"] = "#ef4444",
+        ["BMY"] = "#6366f1", ["TGJ"] = "#84cc16", ["GEA"] = "#94a3b8",
+        ["NOU"] = "#3b82f6", ["KNQ"] = "#14b8a6", ["VLI"] = "#e879f9",
+        ["SON"] = "#fb923c", ["TAH"] = "#a78bfa"
+    };
+
+    static string GetRouteColor(string dep, string arr)
+    {
+        if (RouteColors.TryGetValue(arr, out var c)) return c;
+        if (RouteColors.TryGetValue(dep, out c)) return c;
+        return "#64748b";
+    }
+
+    static string HoursToHHMM(double h)
+    {
+        var hours = (int)h;
+        var minutes = (int)Math.Round((h - hours) * 60);
+        return $"{hours}h{minutes:D2}";
+    }
+
+    static int TimeToMinutes(string time)
+    {
+        if (string.IsNullOrEmpty(time)) return 0;
+        var parts = time.Split(':');
+        return parts.Length == 2 && int.TryParse(parts[0], out var hh) && int.TryParse(parts[1], out var mm)
+            ? hh * 60 + mm : 0;
+    }
+
+    static int DiffTimeMinutes(string start, string end) => TimeToMinutes(end) - TimeToMinutes(start);
+
+    static string MinutesToHHMM(int m)
+    {
+        var h = m / 60;
+        var mm = m % 60;
+        return $"{h}h{mm:D2}";
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        blocs = await Mediator.Send(new GetAllBlocsVolQuery());
+        allVols = await Mediator.Send(new GetAllVolsQuery());
+        volLookup = allVols.ToDictionary(v => v.Id);
+    }
+
+    void OpenCreate()
+    {
+        editError = null;
+        editId = null;
+        newEtapeVolId = null;
+        isSaving = false;
+        popupTitle = "Nouveau bloc";
+        editModel = new BlocEdit
+        {
+            Sequence = 1,
+            Jour = "Lundi",
+            Periode = "matin",
+            DebutDP = "06:00",
+            FinDP = "09:00",
+            DebutFDP = "06:15",
+            FinFDP = "08:45"
+        };
+        editPopupVisible = true;
+    }
+
+    void OpenEdit(BlocVolDto bloc)
+    {
+        editError = null;
+        editId = bloc.Id;
+        newEtapeVolId = null;
+        popupTitle = "Modifier le bloc";
+        editModel = new BlocEdit
+        {
+            Code = bloc.Code,
+            Sequence = bloc.Sequence,
+            Jour = bloc.Jour,
+            Periode = bloc.Periode,
+            DebutDP = bloc.DebutDP,
+            FinDP = bloc.FinDP,
+            DebutFDP = bloc.DebutFDP,
+            FinFDP = bloc.FinFDP,
+            Etapes = bloc.Etapes.Select(et => new EtapeEdit { VolId = et.VolId }).ToList()
+        };
+        editPopupVisible = true;
+    }
+
+    void OnDebutDPChanged(ChangeEventArgs e) { if (editModel is not null) editModel.DebutDP = e.Value?.ToString() ?? ""; }
+    void OnFinDPChanged(ChangeEventArgs e) { if (editModel is not null) editModel.FinDP = e.Value?.ToString() ?? ""; }
+    void OnDebutFDPChanged(ChangeEventArgs e) { if (editModel is not null) editModel.DebutFDP = e.Value?.ToString() ?? ""; }
+    void OnFinFDPChanged(ChangeEventArgs e) { if (editModel is not null) editModel.FinFDP = e.Value?.ToString() ?? ""; }
+
+    void AddEtape()
+    {
+        if (editModel is not null && newEtapeVolId.HasValue)
+        {
+            editModel.Etapes.Add(new EtapeEdit { VolId = newEtapeVolId.Value });
+            newEtapeVolId = null;
+        }
+    }
+
+    async Task SaveBloc()
+    {
+        if (editModel is null) return;
+        try
+        {
+            editError = null;
+            isSaving = true;
+            var etapes = editModel.Etapes
+                .Select((et, i) => new EtapeVolDto(i + 1, et.VolId))
+                .ToList();
+
+            if (editId is null)
+            {
+                await Mediator.Send(new CreateBlocVolCommand(
+                    editModel.Code, editModel.Sequence, editModel.Jour, editModel.Periode,
+                    editModel.DebutDP, editModel.FinDP, editModel.DebutFDP, editModel.FinFDP, etapes));
+            }
+            else
+            {
+                await Mediator.Send(new UpdateBlocVolCommand(
+                    editId.Value, editModel.Code, editModel.Sequence, editModel.Jour, editModel.Periode,
+                    editModel.DebutDP, editModel.FinDP, editModel.DebutFDP, editModel.FinFDP, etapes));
+            }
+            blocs = await Mediator.Send(new GetAllBlocsVolQuery());
+            editPopupVisible = false;
+        }
+        catch (Application.Common.Exceptions.ValidationException ex)
+        {
+            editError = string.Join(" — ", ex.Errors.SelectMany(kv => kv.Value));
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    void OpenDelete(BlocVolDto bloc)
+    {
+        deleteTarget = bloc;
+        deletePopupVisible = true;
+    }
+
+    async Task ConfirmDelete()
+    {
+        if (deleteTarget is null) return;
+        try
+        {
+            isDeleting = true;
+            await Mediator.Send(new DeleteBlocVolCommand(deleteTarget.Id));
+            blocs = await Mediator.Send(new GetAllBlocsVolQuery());
+            deletePopupVisible = false;
+        }
+        catch (Exception ex)
+        {
+            editError = ex.Message;
+        }
+        finally
+        {
+            isDeleting = false;
+        }
+    }
+
+    class BlocEdit
+    {
+        public string Code { get; set; } = "";
+        public int Sequence { get; set; }
+        public string Jour { get; set; } = "";
+        public string Periode { get; set; } = "";
+        public string DebutDP { get; set; } = "";
+        public string FinDP { get; set; } = "";
+        public string DebutFDP { get; set; } = "";
+        public string FinFDP { get; set; } = "";
+        public List<EtapeEdit> Etapes { get; set; } = [];
+    }
+
+    class EtapeEdit
+    {
+        public Guid VolId { get; set; }
+    }
+}

@@ -1,0 +1,22 @@
+@page "/logout"
+@layout AuthLayout
+@using Microsoft.AspNetCore.Identity
+@using CrewSizer.Infrastructure.Identity
+@inject SignInManager<ApplicationUser> SignInManager
+@inject NavigationManager NavigationManager
+
+<PageTitle>Déconnexion — CrewSizer</PageTitle>
+
+@code {
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (HttpContext.User.Identity?.IsAuthenticated == true)
+        {
+            await SignInManager.SignOutAsync();
+        }
+        NavigationManager.NavigateTo("/login", forceLoad: true);
+    }
+}

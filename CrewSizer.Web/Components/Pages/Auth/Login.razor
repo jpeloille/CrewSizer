@@ -1,0 +1,87 @@
+@page "/login"
+@layout AuthLayout
+@using Microsoft.AspNetCore.Identity
+@using CrewSizer.Infrastructure.Identity
+@inject SignInManager<ApplicationUser> SignInManager
+@inject UserManager<ApplicationUser> UserManager
+@inject NavigationManager NavigationManager
+
+<PageTitle>Connexion — CrewSizer</PageTitle>
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="cs-alert-error mb-4">@errorMessage</div>
+}
+
+<EditForm Model="Input" FormName="login" OnValidSubmit="LoginUser" method="post">
+    <DataAnnotationsValidator />
+    <div class="space-y-4">
+        <div class="space-y-2">
+            <label for="username" class="text-sm font-medium text-foreground">Nom d'utilisateur</label>
+            <InputText id="username" @bind-Value="Input.UserName"
+                       class="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+        </div>
+        <div class="space-y-2">
+            <label for="password" class="text-sm font-medium text-foreground">Mot de passe</label>
+            <InputText id="password" @bind-Value="Input.Password" type="password"
+                       class="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+        </div>
+        <div class="flex items-center gap-2">
+            <InputCheckbox @bind-Value="Input.RememberMe" id="rememberMe" class="h-4 w-4 rounded border-input" />
+            <label for="rememberMe" class="text-sm text-foreground">Se souvenir de moi</label>
+        </div>
+        <button type="submit"
+                class="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90">
+            Se connecter
+        </button>
+    </div>
+</EditForm>
+
+@code {
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    [SupplyParameterFromForm]
+    private LoginInput Input { get; set; } = new();
+
+    private string? errorMessage;
+
+    protected override Task OnInitializedAsync()
+    {
+        if (HttpMethods.IsGet(HttpContext.Request.Method))
+        {
+            if (HttpContext.User.Identity?.IsAuthenticated == true)
+            {
+                NavigationManager.NavigateTo("/", forceLoad: true);
+            }
+        }
+        return Task.CompletedTask;
+    }
+
+    private async Task LoginUser()
+    {
+        var user = await UserManager.FindByNameAsync(Input.UserName);
+        if (user is null)
+        {
+            errorMessage = "Identifiants invalides.";
+            return;
+        }
+
+        var result = await SignInManager.CheckPasswordSignInAsync(user, Input.Password, lockoutOnFailure: false);
+        if (!result.Succeeded)
+        {
+            errorMessage = "Identifiants invalides.";
+            return;
+        }
+
+        await SignInManager.SignInAsync(user, Input.RememberMe);
+        NavigationManager.NavigateTo("/", forceLoad: true);
+    }
+
+    private sealed class LoginInput
+    {
+        public string UserName { get; set; } = "";
+        public string Password { get; set; } = "";
+        public bool RememberMe { get; set; }
+    }
+}

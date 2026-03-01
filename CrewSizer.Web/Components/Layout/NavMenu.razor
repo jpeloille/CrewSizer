@@ -1,0 +1,73 @@
+@inject NavigationManager NavigationManager
+@implements IDisposable
+
+<NavLink href="/" Match="NavLinkMatch.All"
+         class="@NavItemClass("/")" ActiveClass="@ActiveCss">
+    <IconLayoutDashboard CssClass="h-4 w-4" />
+    <span>Dashboard</span>
+</NavLink>
+
+<NavLink href="/scenario" Match="NavLinkMatch.Prefix"
+         class="@NavItemClass("/scenario")" ActiveClass="@ActiveCss">
+    <IconSettings CssClass="h-4 w-4" />
+    <span>Scenario</span>
+</NavLink>
+
+<div class="px-3 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+    Programme
+</div>
+<NavLink href="/programme/vols" Match="NavLinkMatch.All"
+         class="@NavItemClass("/programme/vols")" ActiveClass="@ActiveCss">
+    <IconPlane CssClass="h-4 w-4" />
+    <span>Vols</span>
+</NavLink>
+<NavLink href="/programme/blocs" Match="NavLinkMatch.All"
+         class="@NavItemClass("/programme/blocs")" ActiveClass="@ActiveCss">
+    <IconFileText CssClass="h-4 w-4" />
+    <span>Blocs</span>
+</NavLink>
+<NavLink href="/programme/semaines" Match="NavLinkMatch.All"
+         class="@NavItemClass("/programme/semaines")" ActiveClass="@ActiveCss">
+    <IconCalendar CssClass="h-4 w-4" />
+    <span>Semaines</span>
+</NavLink>
+
+<div class="mx-3 my-2 h-px bg-sidebar-border"></div>
+
+<NavLink href="/equipage" Match="NavLinkMatch.Prefix"
+         class="@NavItemClass("/equipage")" ActiveClass="@ActiveCss">
+    <IconUsers CssClass="h-4 w-4" />
+    <span>Equipage</span>
+</NavLink>
+<NavLink href="/resultats" Match="NavLinkMatch.All"
+         class="@NavItemClass("/resultats")" ActiveClass="@ActiveCss">
+    <IconBarChart CssClass="h-4 w-4" />
+    <span>Resultats</span>
+</NavLink>
+
+@code {
+    const string BaseCss = "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors";
+    const string InactiveCss = "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground";
+    const string ActiveCss = "bg-sidebar-accent text-primary font-medium";
+
+    string NavItemClass(string path) => $"{BaseCss} {InactiveCss}";
+
+    private string? currentUrl;
+
+    protected override void OnInitialized()
+    {
+        currentUrl = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
+        NavigationManager.LocationChanged += OnLocationChanged;
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        currentUrl = NavigationManager.ToBaseRelativePath(e.Location);
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        NavigationManager.LocationChanged -= OnLocationChanged;
+    }
+}

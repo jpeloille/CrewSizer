@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net9.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="MediatR" Version="12.*"/>
+        <PackageReference Include="FluentValidation" Version="11.*"/>
+        <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="11.*"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\CrewSizer.Domain\CrewSizer.Domain.csproj"/>
+        <ProjectReference Include="..\CrewSizer.Infrastructure\CrewSizer.Infrastructure.csproj"/>
+    </ItemGroup>
+
+</Project>

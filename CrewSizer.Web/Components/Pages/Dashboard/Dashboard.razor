@@ -1,0 +1,158 @@
+@page "/"
+@inject IMediator Mediator
+@inject ActiveScenarioService ActiveScenario
+@inject NavigationManager Nav
+
+<PageTitle>Dashboard — CrewSizer</PageTitle>
+
+<div class="page-fill">
+
+<div class="flex items-center justify-between">
+    <h3 class="text-2xl font-bold text-foreground">Tableau de bord</h3>
+
+    @if (scenarios.Count > 0)
+    {
+        <DxComboBox TData="ScenarioListItemDto" TValue="Guid?"
+                    Data="scenarios"
+                    Value="selectedScenarioId"
+                    ValueChanged="OnScenarioChanged"
+                    TextFieldName="Nom"
+                    ValueFieldName="Id"
+                    NullText="Selectionner un scenario..."
+                    ClearButtonDisplayMode="DataEditorClearButtonDisplayMode.Auto"
+                    CssClass="w-[320px]" />
+    }
+</div>
+
+@if (ActiveScenario.HasScenario)
+{
+    var s = ActiveScenario.Scenario!;
+    var nbJours = s.DateFin.DayNumber - s.DateDebut.DayNumber + 1;
+
+    <div class="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        @* Scenario actif *@
+        <div class="cs-card">
+            <div class="flex items-center gap-3">
+                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
+                    <IconSettings CssClass="h-5 w-5" />
+                </div>
+                <div>
+                    <p class="text-xs text-muted-foreground">Scenario actif</p>
+                    <p class="font-data text-lg font-bold">@s.Nom</p>
+                    <p class="text-xs text-muted-foreground">
+                        @s.DateDebut.ToString("dd/MM/yyyy") — @s.DateFin.ToString("dd/MM/yyyy")
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        @* Effectif *@
+        <div class="cs-card">
+            <div class="flex items-center gap-3">
+                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
+                    <IconUsers CssClass="h-5 w-5" />
+                </div>
+                <div>
+                    <p class="text-xs text-muted-foreground">Effectif</p>
+                    <p class="font-data text-lg font-bold">@(s.Cdb + s.Opl + s.Cc + s.Pnc)</p>
+                    <p class="text-xs text-muted-foreground">
+                        @s.Cdb CDB, @s.Opl OPL, @s.Cc CC, @s.Pnc PNC
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        @* Programme *@
+        <div class="cs-card">
+            <div class="flex items-center gap-3">
+                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
+                    <IconPlane CssClass="h-5 w-5" />
+                </div>
+                <div>
+                    <p class="text-xs text-muted-foreground">Programme</p>
+                    <p class="font-data text-lg font-bold">@nbJours</p>
+                    <p class="text-xs text-muted-foreground">jours dans la periode</p>
+                </div>
+            </div>
+        </div>
+
+        @* Calcul *@
+        <div class="cs-card">
+            <div class="flex items-center gap-3">
+                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg @(lastSnapshot is not null ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground")">
+                    <IconBarChart CssClass="h-5 w-5" />
+                </div>
+                <div>
+                    <p class="text-xs text-muted-foreground">Calcul</p>
+                    @if (lastSnapshot is not null)
+                    {
+                        <p class="font-data text-lg font-bold">
+                            <span class="@BadgeCss(lastSnapshot.TauxEngagementGlobal)">
+                                @(lastSnapshot.TauxEngagementGlobal.ToString("P1"))
+                            </span>
+                        </p>
+                        <p class="text-xs text-muted-foreground">
+                            @lastSnapshot.DateCalcul.ToString("dd/MM/yyyy HH:mm")
+                        </p>
+                    }
+                    else
+                    {
+                        <p class="font-data text-lg font-bold">-</p>
+                        <p class="text-xs text-muted-foreground">Aucun calcul effectue</p>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="mt-8 text-center text-muted-foreground">
+        <p>Selectionnez un scenario pour commencer.</p>
+    </div>
+}
+</div>
+
+@code {
+    List<ScenarioListItemDto> scenarios = [];
+    Guid? selectedScenarioId;
+    CalculSnapshotListItemDto? lastSnapshot;
+
+    protected override async Task OnInitializedAsync()
+    {
+        scenarios = await Mediator.Send(new GetAllScenariosQuery());
+        selectedScenarioId = ActiveScenario.ScenarioId;
+
+        if (ActiveScenario.HasScenario)
+            await LoadDashboardData();
+    }
+
+    async Task OnScenarioChanged(Guid? id)
+    {
+        selectedScenarioId = id;
+        if (id.HasValue)
+        {
+            var dto = await Mediator.Send(new GetScenarioByIdQuery(id.Value));
+            ActiveScenario.SetScenario(dto);
+            await LoadDashboardData();
+        }
+        else
+        {
+            ActiveScenario.Clear();
+            lastSnapshot = null;
+        }
+    }
+
+    async Task LoadDashboardData()
+    {
+        var snapshots = await Mediator.Send(new GetAllSnapshotsQuery(ActiveScenario.ScenarioId));
+        lastSnapshot = snapshots.OrderByDescending(s => s.DateCalcul).FirstOrDefault();
+    }
+
+    static string BadgeCss(double taux)
+    {
+        if (taux < 0.85) return "badge-success";
+        if (taux < 0.95) return "badge-warning";
+        return "badge-danger";
+    }
+}
