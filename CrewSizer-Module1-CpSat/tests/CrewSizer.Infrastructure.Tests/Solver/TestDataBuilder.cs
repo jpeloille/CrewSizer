@@ -24,7 +24,8 @@ internal static class TestDataBuilder
     public static List<CrewMemberInfo> CreatePntCrew(
         int numCdb = 10,
         int numOpl = 9,
-        IReadOnlySet<DateOnly>? unavailableDates = null)
+        IReadOnlySet<DateOnly>? unavailableDates = null,
+        bool firstCdbIsRdov = false)
     {
         var cdbTrigrams = new[] { "LRS", "SRV", "WAY", "GAL", "FRD", "BLT", "MAR", "DUP", "VER", "JOL" };
         var oplTrigrams = new[] { "ADE", "BRT", "CJO", "KLM", "PLL", "RTH", "STN", "TRV", "WGN" };
@@ -41,6 +42,8 @@ internal static class TestDataBuilder
                 Rank = CrewRank.CDB,
                 IsExaminer = i < 2, // LRS et SRV sont TRE
                 UnavailableDates = dates,
+                OfficeDaysPerWeek = firstCdbIsRdov && i == 0 ? 3 : 0,
+                WeekendOffFixed = firstCdbIsRdov && i == 0,
             });
         }
 

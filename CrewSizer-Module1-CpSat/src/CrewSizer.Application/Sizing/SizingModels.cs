@@ -94,6 +94,18 @@ public sealed class CrewMemberInfo
 
     /// <summary>Jours d'indisponibilité sur la période (congés imposés, formation, etc.).</summary>
     public IReadOnlySet<DateOnly> UnavailableDates { get; init; } = new HashSet<DateOnly>();
+
+    /// <summary>
+    /// Nombre de jours de bureau par semaine civile (fonction auxiliaire).
+    /// 0 = pilote ligne pure, 3 = RDOV, 2 = RDFE, etc.
+    /// </summary>
+    public int OfficeDaysPerWeek { get; init; }
+
+    /// <summary>
+    /// Repos fixé samedi + dimanche (RDOV).
+    /// Quand true, le navigant ne vole jamais le week-end.
+    /// </summary>
+    public bool WeekendOffFixed { get; init; }
 }
 
 /// <summary>Règles FTL pour le solver (projection de FtlRuleSet).</summary>

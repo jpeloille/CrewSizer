@@ -37,6 +37,8 @@ namespace CrewSizer.Infrastructure.Solver;
 ///   C12 — Repos hebdo 36h + 2 nuitées / semaine civile (ORO.FTL.235(d))
 ///   C13 — Repos mensuel week-end 3j (Sam+Dim)  (si horizon ≥ 28j)
 ///   C15 — Repos étendu récupération 36h / 168h glissant (ORO.FTL.235(d))
+///   C16a— Week-end OFF fixe (RDOV)                (Convention TPC)
+///   C16b— Jours bureau / semaine ouvrée            (AMD03 fonctions auxiliaires)
 ///   PRE — Validation FDP max Table 2        (ORO.FTL.205)
 ///
 /// ══════════════════════════════════════════════════════════════
@@ -345,6 +347,9 @@ public sealed class OrToolsSizingSolver : ISizingSolver
             if (extWindowDays > 0 && numDays >= extWindowDays)
                 AddExtendedRecoveryRestConstraint(model, works, numDays, numCrew, extWindowDays);
         }
+
+        // --- C16 : Fonctions auxiliaires (jours bureau + repos week-end fixe) ---
+        AddAuxiliaryFunctionConstraints(model, works, dayByIndex, crewByIndex);
 
         // ──────────────────────────────────────────────────
         // Objectif : minimiser le nombre de navigants utilisés
@@ -1071,6 +1076,66 @@ public sealed class OrToolsSizingSolver : ISizingSolver
     }
 
     /// <summary>
+    /// C16 — Fonctions auxiliaires : jours bureau + repos week-end fixe.
+    /// C16a : WeekendOffFixed → works = 0 les samedis et dimanches.
+    /// C16b : OfficeDaysPerWeek → vol limité à (5 - office) jours ouvrés par semaine ISO.
+    /// </summary>
+    private static void AddAuxiliaryFunctionConstraints(
+        CpModel model,
+        BoolVar[][] works,
+        List<DailyProgram> days,
+        List<CrewMemberInfo> crew)
+    {
+        for (int c = 0; c < crew.Count; c++)
+        {
+            var member = crew[c];
+
+            // C16a : Week-end OFF fixe
+            if (member.WeekendOffFixed)
+            {
+                for (int d = 0; d < days.Count; d++)
+                {
+                    var dow = days[d].Date.DayOfWeek;
+                    if (dow is DayOfWeek.Saturday or DayOfWeek.Sunday)
+                    {
+                        model.Add(works[c][d] == 0);
+                    }
+                }
+            }
+
+            // C16b : Jours bureau limitent les jours de vol sur jours ouvrés
+            if (member.OfficeDaysPerWeek > 0)
+            {
+                int maxFlightDaysPerWeek = 5 - member.OfficeDaysPerWeek;
+
+                // Grouper par semaine ISO (cohérent avec AddWeeklyRestConstraint)
+                var weekGroups = Enumerable.Range(0, days.Count)
+                    .GroupBy(d =>
+                    {
+                        var dt = days[d].Date.ToDateTime(TimeOnly.MinValue);
+                        return (System.Globalization.ISOWeek.GetYear(dt),
+                                System.Globalization.ISOWeek.GetWeekOfYear(dt));
+                    });
+
+                foreach (var week in weekGroups)
+                {
+                    var weekdayIndices = week
+                        .Where(d => days[d].Date.DayOfWeek
+                            is not DayOfWeek.Saturday
+                            and not DayOfWeek.Sunday)
+                        .ToList();
+
+                    if (weekdayIndices.Count == 0) continue;
+
+                    int effectiveMax = Math.Min(maxFlightDaysPerWeek, weekdayIndices.Count);
+                    var weekWorkVars = weekdayIndices.Select(d => works[c][d]).ToArray();
+                    model.Add(LinearExpr.Sum(weekWorkVars) <= effectiveMax);
+                }
+            }
+        }
+    }
+
+    /// <summary>
     /// Analyse la solution pour identifier la contrainte la plus serrée.
     /// </summary>
     private static string? DetermineBindingConstraint(
@@ -1089,6 +1154,7 @@ public sealed class OrToolsSizingSolver : ISizingSolver
         double maxConsecutiveWorkRatio = 0;
         double weeklyRestTightness = 0;
         double monthlyWeekendTightness = 0;
+        double maxOfficeDaysRatio = 0;
 
         for (int c = 0; c < crew.Count; c++)
         {
@@ -1265,6 +1331,36 @@ public sealed class OrToolsSizingSolver : ISizingSolver
             }
         }
 
+        // C16 : Fonctions auxiliaires (jours bureau)
+        for (int c = 0; c < crew.Count; c++)
+        {
+            if (crew[c].OfficeDaysPerWeek <= 0) continue;
+            int maxFlightDays = 5 - crew[c].OfficeDaysPerWeek;
+            if (maxFlightDays <= 0) continue;
+
+            var weekGroups = new Dictionary<(int, int), List<int>>();
+            for (int d = 0; d < days.Count; d++)
+            {
+                var dt = days[d].Date.ToDateTime(TimeOnly.MinValue);
+                var key = (System.Globalization.ISOWeek.GetYear(dt),
+                           System.Globalization.ISOWeek.GetWeekOfYear(dt));
+                if (!weekGroups.ContainsKey(key))
+                    weekGroups[key] = new List<int>();
+                weekGroups[key].Add(d);
+            }
+
+            foreach (var (_, weekDays) in weekGroups)
+            {
+                int flownWeekdays = weekDays
+                    .Where(d => days[d].Date.DayOfWeek is not DayOfWeek.Saturday
+                                                       and not DayOfWeek.Sunday)
+                    .Count(d => solver.Value(works[c][d]) == 1);
+
+                double ratio = (double)flownWeekdays / maxFlightDays;
+                maxOfficeDaysRatio = Math.Max(maxOfficeDaysRatio, ratio);
+            }
+        }
+
         // Retourner la contrainte la plus serrée
         var constraints = new (string Name, double Ratio)[]
         {
@@ -1276,6 +1372,7 @@ public sealed class OrToolsSizingSolver : ISizingSolver
             ("Repos 2j local / max 6j ON consécutifs", maxConsecutiveWorkRatio),
             ("Repos 36h + 2 nuitées / semaine civile", weeklyRestTightness),
             ("Repos mensuel 3j + week-end", monthlyWeekendTightness),
+            ("Jours bureau (fonction auxiliaire)", maxOfficeDaysRatio),
         };
 
         var binding = constraints.MaxBy(x => x.Ratio);
