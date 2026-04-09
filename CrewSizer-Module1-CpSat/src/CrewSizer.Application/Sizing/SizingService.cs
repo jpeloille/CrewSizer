@@ -89,7 +89,9 @@ public sealed class SizingService
                 Category = c.Category,
                 Rank = c.Rank,
                 IsExaminer = c.IsExaminer,
-                UnavailableDates = leavesByMember.GetValueOrDefault(c.Id, new HashSet<DateOnly>())
+                UnavailableDates = leavesByMember.GetValueOrDefault(c.Id, new HashSet<DateOnly>()),
+                OfficeDaysPerWeek = c.OfficeDaysPerWeek,
+                WeekendOffFixed = c.WeekendOffFixed,
             }).ToList(),
             FtlRules = MapFtlRules(ruleSet)
         };

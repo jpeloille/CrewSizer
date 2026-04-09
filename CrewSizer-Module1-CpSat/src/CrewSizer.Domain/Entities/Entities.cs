@@ -16,6 +16,8 @@ public class CrewMember
     public CrewRank Rank { get; set; }
     public bool IsActive { get; set; } = true;
     public bool IsExaminer { get; set; }
+    public int OfficeDaysPerWeek { get; set; }    // 0 = ligne pure, 3 = RDOV, 2 = RDFE
+    public bool WeekendOffFixed { get; set; }      // true = repos sam+dim imposé
 }
 
 /// <summary>Bloc de vols (rotation de N vols sur une demi-journée).</summary>

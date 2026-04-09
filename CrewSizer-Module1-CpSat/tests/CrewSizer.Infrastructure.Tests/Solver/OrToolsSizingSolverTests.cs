@@ -1082,4 +1082,85 @@ public class OrToolsSizingSolverTests
                 $"le {day.Date} aucun navigant ne doit être affecté à 2 blocs");
         }
     }
+
+    // ═══════════════════════════════════════════════════════
+    //  Scénario : RDOV — fonction auxiliaire (C16)
+    // ═══════════════════════════════════════════════════════
+
+    [Fact]
+    public async Task Solve_Rdov_CdbWith3OfficeDays_FliesAtMost2WeekdaysPerWeek()
+    {
+        // Arrange — 14 jours, 5 CDB dont 1 RDOV (3j bureau + WE fixe) + 5 OPL
+        // Programme lun-sam 2 blocs, dim repos
+        var start = new DateOnly(2026, 3, 2); // Lundi
+        var crew = TestDataBuilder.CreatePntCrew(numCdb: 5, numOpl: 5, firstCdbIsRdov: true);
+        var rdovTrigram = crew.First(c => c.WeekendOffFixed).Trigram;
+
+        var request = new SizingRequest
+        {
+            StartDate = start,
+            EndDate = start.AddDays(13), // 2 semaines
+            Category = CrewCategory.PNT,
+            DailyPrograms = TestDataBuilder.CreateLowSeasonProgram(start, 14),
+            AvailableCrew = crew,
+            FtlRules = TestDataBuilder.DefaultFtlRules,
+            TimeoutSeconds = 30,
+        };
+
+        // Act
+        var result = await _solver.SolveAsync(request);
+
+        // Assert — feasible
+        result.IsFeasible.Should().BeTrue();
+
+        // C16a : le RDOV ne travaille jamais le samedi ni le dimanche
+        foreach (var day in result.Assignments)
+        {
+            if (day.Date.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday)
+            {
+                var allAssigned = day.BlockAssignments
+                    .SelectMany(b => b.AssignedCrew)
+                    .ToList();
+                allAssigned.Should().NotContain(rdovTrigram,
+                    $"le RDOV {rdovTrigram} ne doit pas voler le {day.Date} ({day.Date.DayOfWeek})");
+            }
+        }
+
+        // C16b : le RDOV vole max 2 jours par semaine ouvrée (lun-ven)
+        var weekGroups = result.Assignments
+            .Where(a => a.Date.DayOfWeek is not DayOfWeek.Saturday and not DayOfWeek.Sunday)
+            .GroupBy(a =>
+            {
+                var dt = a.Date.ToDateTime(TimeOnly.MinValue);
+                return System.Globalization.ISOWeek.GetWeekOfYear(dt);
+            });
+
+        foreach (var week in weekGroups)
+        {
+            int rdovFlightDays = week.Count(day =>
+                day.BlockAssignments.Any(b => b.AssignedCrew.Contains(rdovTrigram)));
+
+            rdovFlightDays.Should().BeLessThanOrEqualTo(2,
+                $"le RDOV {rdovTrigram} ne doit voler que max 2j/sem (semaine ISO {week.Key})");
+        }
+
+        // Le solver devrait avoir besoin de plus de CDB qu'un run sans RDOV
+        var requestNoRdov = new SizingRequest
+        {
+            StartDate = start,
+            EndDate = start.AddDays(13),
+            Category = CrewCategory.PNT,
+            DailyPrograms = TestDataBuilder.CreateLowSeasonProgram(start, 14),
+            AvailableCrew = TestDataBuilder.CreatePntCrew(numCdb: 5, numOpl: 5, firstCdbIsRdov: false),
+            FtlRules = TestDataBuilder.DefaultFtlRules,
+            TimeoutSeconds = 30,
+        };
+
+        var resultNoRdov = await _solver.SolveAsync(requestNoRdov);
+        resultNoRdov.IsFeasible.Should().BeTrue();
+
+        result.MinimumCrewByRank[CrewRank.CDB]
+            .Should().BeGreaterThanOrEqualTo(resultNoRdov.MinimumCrewByRank[CrewRank.CDB],
+                "le RDOV réduit la capacité vol, le solver doit utiliser au moins autant de CDB");
+    }
 }
